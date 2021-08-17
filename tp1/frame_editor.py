@@ -1,5 +1,4 @@
 import cv2
-import imutils
 
 
 def denoise(frame, method, radius):
@@ -9,16 +8,7 @@ def denoise(frame, method, radius):
     return closing
 
 
-def apply_color_convertion(frame, color):
-    return cv2.cvtColor(frame, color)
-
-
-def adaptive_threshold(frame, slider_max, adaptative, binary, trackbar_value):
-    return cv2.adaptiveThreshold(frame, slider_max, adaptative, binary, trackbar_value, 0)
-
-
 def draw_contours(frame, contours, color, thickness):
-    # -1 for all contours
     cv2.drawContours(frame, contours, -1, color, thickness)
     return frame
 

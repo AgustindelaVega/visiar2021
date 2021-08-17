@@ -1,52 +1,77 @@
 import cv2
 
-from tp1.contour import get_contours, get_biggest_contour, compare_contours
-from tp1.frame_editor import apply_color_convertion, adaptive_threshold, denoise, draw_contours, draw_name
+from tp1.contour import get_biggest_contours, compare_contours, get_external_contours
+from tp1.frame_editor import denoise, draw_contours, draw_name
 from tp1.trackbar import create_trackbar, get_trackbar_value
+main_window = 'Window'
+main_window_trackbar = 'Trackbar'
+contours_window = 'Window - Contours'
+contours_window_trackbar = 'Trackbar - Contours'
 
 
 def main():
 
-    window_name = 'Window'
-    trackbar_name = 'Trackbar'
-    slider_max = 151
-    cv2.namedWindow(window_name)
+    cv2.namedWindow(main_window)
+    cv2.namedWindow(contours_window)
     cap = cv2.VideoCapture(2)
     biggest_contour = None
     color_white = (255, 255, 255)
-    color_green = (255, 0, 0)
-    create_trackbar(trackbar_name, window_name, slider_max)
-    # saved_hu_moments = load_hu_moments(file_name="hu_moments.txt")
+    color_green = (0, 255, 0)
+    color_red = (0, 0, 255)
+    color_blue = (255, 0, 0)
+    colors = [color_green, color_red, color_blue]
+    create_trackbar(main_window_trackbar, main_window, 151)
+    create_trackbar(contours_window_trackbar, contours_window, 1000)
     saved_contours = []
 
     while True:
-        ret, frame = cap.read()
-        gray_frame = apply_color_convertion(frame=frame, color=cv2.COLOR_RGB2GRAY)
-        trackbar_val = get_trackbar_value(trackbar_name=trackbar_name, window_name=window_name)
-        adapt_frame = adaptive_threshold(frame=gray_frame, slider_max=slider_max,
-                                         adaptative=cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                                         binary=cv2.THRESH_BINARY,
-                                         trackbar_value=trackbar_val)
-        frame_denoised = denoise(frame=adapt_frame, method=cv2.MORPH_ELLIPSE, radius=10)
-        contours = get_contours(frame=frame_denoised, mode=cv2.RETR_TREE, method=cv2.CHAIN_APPROX_NONE)
+        _, frame = cap.read()
+        frame = cv2.flip(frame, 0)
+        gray_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+
+        trackbar_val = get_trackbar_value(main_window_trackbar, main_window)
+        threshold_frame = cv2.adaptiveThreshold(gray_frame, 151, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, trackbar_val, 0)
+
+        frame_denoised = denoise(threshold_frame, cv2.MORPH_ELLIPSE, 10)
+        contours, hierarchy = cv2.findContours(frame_denoised, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+
         if len(contours) > 0:
-            biggest_contour = get_biggest_contour(contours=contours)
-            # hu_moments = get_hu_moments(contour=biggest_contour)
+            external_contours = get_external_contours(contours, hierarchy)
+            biggest_contours = get_biggest_contours(external_contours, 3)
+            biggest_contour = biggest_contours[0]
+            trackbar_contour_val = get_trackbar_value(main_window_trackbar, contours_window) / 1000
 
-            val = compare_contours(contour_to_compare=biggest_contour, saved_contours=saved_contours, max_diff=1)
-            if val[0]:
-                draw_contours(frame=frame, contours=biggest_contour, color=color_green, thickness=30)
-                draw_name(frame=frame, value=val[1], color=color_green, thickness=3)
-            draw_contours(frame=frame, contours=biggest_contour, color=color_white, thickness=3)
+            for idx, contour in enumerate(biggest_contours):
+                val = compare_contours(contour_to_compare=contour, saved_contours=saved_contours, max_diff=trackbar_contour_val)
+                if val[0]:
+                    draw_contours(frame=frame, contours=contour, color=colors[idx], thickness=30)
+                    draw_name(frame=frame, value=val[1], color=color_white, thickness=3)
+                else:
+                    draw_contours(frame=frame, contours=contour, color=color_white, thickness=3)
 
-        cv2.imshow(window_name, frame_denoised)
-        cv2.imshow('Window - Contours', frame)
-        if cv2.waitKey(1) & 0xFF == ord('k'):
+        cv2.imshow(main_window, frame_denoised)
+        cv2.imshow(contours_window, frame)
+
+        if cv2.waitKey(1) & 0xFF == ord('i'):
             if biggest_contour is not None:
-                val = input("Please enter object name: ")
-                # val = "control"
-                # save_moment(hu_moments=hu_moments, file_name="hu_moments.txt")
+                val = 'Circulo'
                 saved_contours.append((biggest_contour, val))
+                print('Saved "Circulo"')
+
+        if cv2.waitKey(1) & 0xFF == ord('u'):
+            if biggest_contour is not None:
+                val = 'Cuadrado'
+                saved_contours.append((biggest_contour, val))
+                print('Saved "Cuadrado"')
+
+        if cv2.waitKey(1) & 0xFF == ord('t'):
+            if biggest_contour is not None:
+                val = 'Triangulo'
+                saved_contours.append((biggest_contour, val))
+                print('Saved "Triangulo"')
+
+        if cv2.waitKey(1) & 0xFF == ord('r'):
+            saved_contours = []
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
