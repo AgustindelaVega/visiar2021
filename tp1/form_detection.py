@@ -1,8 +1,8 @@
 import cv2
 
-from tp_deteccion.contour import get_contours, get_biggest_contour, compare_contours
-from tp_deteccion.frame_editor import apply_color_convertion, adaptive_threshold, denoise, draw_contours, draw_name
-from tp_deteccion.trackbar import create_trackbar, get_trackbar_value
+from tp1.contour import get_contours, get_biggest_contour, compare_contours
+from tp1.frame_editor import apply_color_convertion, adaptive_threshold, denoise, draw_contours, draw_name
+from tp1.trackbar import create_trackbar, get_trackbar_value
 
 
 def main():
