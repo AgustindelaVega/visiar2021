@@ -3,9 +3,9 @@ import cv2
 
 def denoise(frame, method, radius):
     kernel = cv2.getStructuringElement(method, (radius, radius))
-    opening = cv2.morphologyEx(frame, cv2.MORPH_OPEN, kernel)
-    closing = cv2.morphologyEx(opening, cv2.MORPH_CLOSE, kernel)
-    return closing
+    opening = cv2.morphologyEx(frame, cv2.MORPH_OPEN, kernel) # erosion then dilation / cleans white dots
+    # closing = cv2.morphologyEx(opening, cv2.MORPH_CLOSE, kernel) # dilation then erosion / cleans black dots / not needed
+    return opening
 
 
 def draw_contours(frame, contours, color, thickness):
@@ -18,6 +18,6 @@ def draw_name(frame, value, color, thickness):
     cX = int(M["m10"] / M["m00"])
     cY = int(M["m01"] / M["m00"])
 
-    cv2.putText(frame, value[1], (cX - 20, cY - 20), cv2.FONT_HERSHEY_SIMPLEX, 1, color, thickness)
+    cv2.putText(frame, value[1], (cX - 20, cY - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, thickness)
 
 
