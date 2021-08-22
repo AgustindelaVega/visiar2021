@@ -18,6 +18,12 @@ colors = [green, red, blue]
 
 contours_amount = 3
 
+# TODO:
+# es buena idea incluir una barra de desplazamiento para ajustar el tamaño del elemento estructural
+# Filtrar contornos que se pueden descartar de antemano, por ejemplo, por tener un área muy pequeña
+# establecer un umbral de distancia máxima de validez, es conveniente una barra deslizante para ajustar este valor
+# contorno en rojo para objetos desconocidos
+
 
 def main():
 
@@ -30,7 +36,7 @@ def main():
     biggest_contour = None  # Current frame biggest contour
     saved_contours = []
 
-    cap = cv2.VideoCapture(2)
+    cap = cv2.VideoCapture(0)
     while True:
         _, frame = cap.read()
         frame = cv2.flip(frame, 0)
@@ -38,7 +44,7 @@ def main():
 
         threshold_val = int(get_trackbar_value(main_window_trackbar, main_window) / 2) * 2 + 3  # No need to use when using otsu threshold, it determines it automatically
 
-        _, threshold_frame = cv2.threshold(gray_frame, threshold_val, maxval=255, type=cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        _, threshold_frame = cv2.threshold(gray_frame, threshold_val, maxval=255, type=cv2.THRESH_BINARY)
 
         frame_denoised = denoise(threshold_frame, cv2.MORPH_ELLIPSE, 10)
         contours, _ = cv2.findContours(frame_denoised, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)  # only external contours and no approximation
