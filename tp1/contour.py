@@ -2,9 +2,6 @@ import cv2
 
 
 def get_biggest_contours(contours, amount, min_area):
-    for cont in contours:
-        print(cv2.contourArea(cont))
-
     contours = filter(lambda x: (cv2.contourArea(x) >= min_area), contours)
     return sorted(contours, key=cv2.contourArea, reverse=True)[0:amount]
 
