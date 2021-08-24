@@ -47,7 +47,7 @@ def main():
 
         # threshold_val = int(get_trackbar_value(main_window_trackbar, main_window) / 2) * 2 + 3  # No need to use when using otsu threshold, it determines it automatically
 
-        _, threshold_frame = cv2.threshold(gray_frame, 255, maxval=255, type=cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        _, threshold_frame = cv2.threshold(gray_frame, thresh=255, maxval=255, type=cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
         trackbar_structuring_element_val = get_trackbar_value(structuring_element_size_trackbar, denoise_window) + 1
         frame_denoised = denoise(threshold_frame, cv2.MORPH_ELLIPSE, trackbar_structuring_element_val)
