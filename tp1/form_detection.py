@@ -3,6 +3,7 @@ import cv2
 from tp1.contour import get_biggest_contours, compare_contours
 from tp1.frame_editor import denoise, draw_contours, draw_name
 from tp1.trackbar import create_trackbar, get_trackbar_value
+
 threshold_window = 'Window - Threshold'
 threshold_trackbar = 'Trackbar'
 
@@ -72,15 +73,15 @@ def main():
         cv2.imshow(denoise_window, frame_denoised)
         cv2.imshow(contours_window, frame)
 
-        if cv2.waitKey(1) & 0xFF == ord('i'):
+        if cv2.waitKey(1) & 0xFF == ord('c'):
             if biggest_contour is not None:
                 saved_contours.append((biggest_contour, 'Circulo'))
                 print('Saved "Circulo"')
 
-        if cv2.waitKey(1) & 0xFF == ord('u'):
+        if cv2.waitKey(1) & 0xFF == ord('r'):
             if biggest_contour is not None:
-                saved_contours.append((biggest_contour, 'Cuadrado'))
-                print('Saved "Cuadrado"')
+                saved_contours.append((biggest_contour, 'Rectangulo'))
+                print('Saved "Rectangulo"')
 
         if cv2.waitKey(1) & 0xFF == ord('t'):
             if biggest_contour is not None:
@@ -93,7 +94,7 @@ def main():
                 saved_contours.append((biggest_contour, val))
                 print('Saved ', val)
 
-        if cv2.waitKey(1) & 0xFF == ord('r'):
+        if cv2.waitKey(1) & 0xFF == ord('f'):
             saved_contours = []
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
