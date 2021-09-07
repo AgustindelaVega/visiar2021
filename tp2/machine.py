@@ -3,7 +3,7 @@ import cv2
 import numpy
 
 from tp1.frame_editor import denoise
-from tp1.frame_editor import draw_contours
+from tp1.frame_editor import draw_contours, draw_name
 from tp1.contour import get_biggest_contours
 from math import copysign, log10
 import csv
@@ -16,14 +16,7 @@ def write_hu_moments():
     writer = csv.writer(file)
 
     for idx, img in enumerate(glob.glob(r'./imagenes/*.png')):
-        frame = cv2.imread(img)
-        gray_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
-        threshold_frame = cv2.adaptiveThreshold(gray_frame, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 301, 10)
-        frame_denoised = denoise(threshold_frame, cv2.MORPH_ELLIPSE, 5)
-        contours, _ = cv2.findContours(frame_denoised, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-        contours = get_biggest_contours(contours, 1, 0)
-        draw_contours(frame, contours[0], (255, 0, 0), 5)
-        hu_moments = get_hu_moments(contours[0])
+        hu_moments = get_moments(cv2.imread(img))
         hu_moments = hu_moments.flatten()
         file2 = open(r'supervision.csv', 'r')
         reader = csv.reader(file2, delimiter=',')
@@ -31,16 +24,22 @@ def write_hu_moments():
             if row[0] == img[11:-4]:
                 writer.writerow(numpy.insert(hu_moments, 0, row[1]))
 
-
-def get_moments(frame):
+def get_denoised(frame):
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
     threshold_frame = cv2.adaptiveThreshold(gray_frame, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 511,
                                             10)
-    frame_denoised = denoise(threshold_frame, cv2.MORPH_ELLIPSE, 5)
-    contours, _ = cv2.findContours(frame_denoised, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-    contours = get_biggest_contours(contours, 1, 0)
+    return denoise(threshold_frame, cv2.MORPH_ELLIPSE, 5)
+
+
+def get_moments(frame):
+    frame_denoised = get_denoised(frame)
+    contours = get_contours(frame_denoised)
     return get_hu_moments(contours[0])
 
+
+def get_contours(frame):
+    contours, _ = cv2.findContours(frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    return get_biggest_contours(contours, 1, 0)
 
 def get_hu_moments(contour):
     moments = cv2.moments(contour)
@@ -81,9 +80,7 @@ def train_model():
     return tree
 
 
-def evaluate_tree(tree, frame):
-    moments = get_moments(frame)
-    print(moments)
+def evaluate_tree(tree, moments):
     data = np.array([moments], dtype=np.float32)
     return tree.predict(data)[0]
     # return int_to_label(tree.predict(data)[0])
@@ -100,9 +97,27 @@ def int_to_label(int_value):
         raise Exception('unkown class_label')
 
 
-trained_tree = train_model()
-print(evaluate_tree(trained_tree, cv2.imread(r'test_images/5-point-star.png')))
-print(evaluate_tree(trained_tree, cv2.imread(r'test_images/rectangle.jpg')))
-print(evaluate_tree(trained_tree, cv2.imread(r'test_images/rectangle2.jpg')))
-print(evaluate_tree(trained_tree, cv2.imread(r'test_images/triangle.png')))
-# main()
+def main():
+    trained_tree = train_model()
+    cv2.namedWindow("main-window")
+    cv2.namedWindow("draw-window")
+    cap = cv2.VideoCapture(2)
+
+    while True:
+        _, frame = cap.read()
+        frame = cv2.flip(frame, 0)
+        moments = get_moments(frame)
+        contours = get_contours(get_denoised(frame))
+        drawed = draw_contours(frame, contours, (255, 0, 0), 5)
+        prediction = int_to_label(evaluate_tree(trained_tree, moments))
+        print(prediction)
+        draw_name(drawed, (contours[0], prediction), (0, 255, 0), thickness=3)
+        cv2.imshow("draw-window", drawed)
+        if cv2.waitKey(1) & 0xFF:
+            continue
+
+# print(evaluate_tree(trained_tree, cv2.imread(r'test_images/5-point-star.png')))
+# print(evaluate_tree(trained_tree, cv2.imread(r'test_images/rectangle.jpg')))
+# print(evaluate_tree(trained_tree, cv2.imread(r'test_images/rectangle2.jpg')))
+# print(evaluate_tree(trained_tree, cv2.imread(r'test_images/triangle.png')))
+main()
