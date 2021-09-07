@@ -1,6 +1,7 @@
 import glob
 import cv2
 import numpy
+import os
 
 from tp1.frame_editor import denoise
 from tp1.frame_editor import draw_contours, draw_name
@@ -85,18 +86,26 @@ def evaluate_tree(tree, moments):
 
 
 def int_to_label(int_value):
-    if int_value == 0:
-        return '5-point-star'
-    if int_value == 1:
-        return 'rectangle'
-    if int_value == 2:
-        return 'triangle'
-    else:
-        raise Exception('unkown class_label')
+    file2 = open(r'etiquetas.csv', 'r')
+    reader = csv.reader(file2, delimiter=',')
+    for row in reader:
+        if int(row[0]) == int_value:
+            return row[1]
 
 
 def main():
-    trained_tree = train_model()
+    if os.path.exists(r'./tree.yml'):
+        trained_tree = cv2.ml.DTrees_create()
+        trained_tree.load(r'./tree.yml')
+        print("Loaded pre-trained model")
+    else:
+        trained_tree = train_model()
+        print("Trained model")
+
+    if trained_tree:
+        trained_tree.save(r'./tree.yml')
+        print("Saved model")
+
     cv2.namedWindow("binary-window")
     cv2.namedWindow("draw-window")
     cap = cv2.VideoCapture(2)
@@ -104,13 +113,17 @@ def main():
     while True:
         _, frame = cap.read()
         frame = cv2.flip(frame, 0)
+
         denoised_frame = get_denoised(frame)
         contours = get_contours(denoised_frame)
         moments = get_moments(contours)
+
         drawed = draw_contours(frame, contours, (255, 0, 0), 5)
+
         prediction = int_to_label(evaluate_tree(trained_tree, moments))
-        print(prediction)
+
         draw_name(drawed, (contours[0], prediction), (0, 255, 0), thickness=3)
+
         cv2.imshow("draw-window", drawed)
         cv2.imshow("binary-window", denoised_frame)
         if cv2.waitKey(1) & 0xFF:
