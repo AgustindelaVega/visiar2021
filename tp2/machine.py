@@ -10,7 +10,6 @@ import csv
 import numpy as np
 
 
-
 def write_hu_moments():
     file = open(r'descriptores.csv', 'w')
     writer = csv.writer(file)
@@ -24,6 +23,7 @@ def write_hu_moments():
             if row[0] == img[11:-4]:
                 writer.writerow(numpy.insert(hu_moments, 0, row[1]))
 
+
 def get_denoised(frame):
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
     threshold_frame = cv2.adaptiveThreshold(gray_frame, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 511,
@@ -31,15 +31,14 @@ def get_denoised(frame):
     return denoise(threshold_frame, cv2.MORPH_ELLIPSE, 5)
 
 
-def get_moments(frame):
-    frame_denoised = get_denoised(frame)
-    contours = get_contours(frame_denoised)
+def get_moments(contours):
     return get_hu_moments(contours[0])
 
 
 def get_contours(frame):
     contours, _ = cv2.findContours(frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     return get_biggest_contours(contours, 1, 0)
+
 
 def get_hu_moments(contour):
     moments = cv2.moments(contour)
@@ -62,7 +61,7 @@ def load_training_set():
                 floats.append(float(n))  # tiene los momentos de Hu transformados a float.
             train_data.append(np.array(floats, dtype=np.float32))  # momentos de Hu
             train_labels.append(np.array([float(class_label)], dtype=np.int32))  # Resultados
-            #Valores y resultados se necesitan por separados
+            # Valores y resultados se necesitan por separados
     train_data = np.array(train_data, dtype=np.float32)
     train_labels = np.array(train_labels, dtype=np.int32)
     return train_data, train_labels
@@ -83,7 +82,6 @@ def train_model():
 def evaluate_tree(tree, moments):
     data = np.array([moments], dtype=np.float32)
     return tree.predict(data)[0]
-    # return int_to_label(tree.predict(data)[0])
 
 
 def int_to_label(int_value):
@@ -99,25 +97,24 @@ def int_to_label(int_value):
 
 def main():
     trained_tree = train_model()
-    cv2.namedWindow("main-window")
+    cv2.namedWindow("binary-window")
     cv2.namedWindow("draw-window")
     cap = cv2.VideoCapture(2)
 
     while True:
         _, frame = cap.read()
         frame = cv2.flip(frame, 0)
-        moments = get_moments(frame)
-        contours = get_contours(get_denoised(frame))
+        denoised_frame = get_denoised(frame)
+        contours = get_contours(denoised_frame)
+        moments = get_moments(contours)
         drawed = draw_contours(frame, contours, (255, 0, 0), 5)
         prediction = int_to_label(evaluate_tree(trained_tree, moments))
         print(prediction)
         draw_name(drawed, (contours[0], prediction), (0, 255, 0), thickness=3)
         cv2.imshow("draw-window", drawed)
+        cv2.imshow("binary-window", denoised_frame)
         if cv2.waitKey(1) & 0xFF:
             continue
 
-# print(evaluate_tree(trained_tree, cv2.imread(r'test_images/5-point-star.png')))
-# print(evaluate_tree(trained_tree, cv2.imread(r'test_images/rectangle.jpg')))
-# print(evaluate_tree(trained_tree, cv2.imread(r'test_images/rectangle2.jpg')))
-# print(evaluate_tree(trained_tree, cv2.imread(r'test_images/triangle.png')))
+
 main()
