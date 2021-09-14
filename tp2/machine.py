@@ -20,23 +20,31 @@ min_area_trackbar = 'Min-Area-Trackbar'
 drawed_window = 'Drawed-Window'
 
 
-def get_denoised(frame):
+def get_denoised(frame, trackbar):
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
-    block_size = int(np.ceil(get_trackbar_value(block_size_trackbar, binary_window)) // 2 * 2 + 3)
-    block_size
+    if trackbar:
+        block_size = int(np.ceil(get_trackbar_value(block_size_trackbar, binary_window)) // 2 * 2 + 3)
+        denoise_radius = get_trackbar_value(denoise_radius_trackbar, binary_window) + 1
+    else:
+        block_size = 501
+        denoise_radius = 10
     threshold_frame = cv2.adaptiveThreshold(gray_frame, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV,
                                             block_size,
                                             10)
-    return denoise(threshold_frame, cv2.MORPH_ELLIPSE, get_trackbar_value(denoise_radius_trackbar, binary_window) + 1)
+    return denoise(threshold_frame, cv2.MORPH_ELLIPSE, denoise_radius)
 
 
 def get_moments(contour):
     return get_hu_moments(contour)
 
 
-def get_contours(frame):
+def get_contours(frame, trackbar):
     contours, _ = cv2.findContours(frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-    return get_biggest_contours(contours, 3, get_trackbar_value(min_area_trackbar, drawed_window))
+    if trackbar:
+        value = get_trackbar_value(min_area_trackbar, drawed_window)
+    else:
+        value = 10000
+    return get_biggest_contours(contours, 3, value)
 
 
 def get_hu_moments(contour):
@@ -81,8 +89,8 @@ def main():
         _, frame = cap.read()
         frame = cv2.flip(frame, 0)
 
-        denoised_frame = get_denoised(frame)
-        contours = get_contours(denoised_frame)
+        denoised_frame = get_denoised(frame, True)
+        contours = get_contours(denoised_frame, True)
         drawed = frame
 
         for idx, contour in enumerate(contours):
