@@ -30,3 +30,7 @@ def train_model():
     tree.setMaxDepth(10)
     tree.train(train_data, cv2.ml.ROW_SAMPLE, train_labels)
     return tree
+
+
+if __name__ == '__main__':
+    train_model()

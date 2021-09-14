@@ -2,7 +2,7 @@ import csv
 import cv2
 import numpy
 import glob
-from machine import get_moments, get_contours
+from machine import get_moments, get_contours, get_denoised
 
 
 def write_descriptors():
@@ -10,7 +10,8 @@ def write_descriptors():
     writer = csv.writer(file)
 
     for idx, img in enumerate(glob.glob(r'./imagenes/*.png')):
-        contour = get_contours(cv2.imread(img))[0]
+        frame = get_denoised(cv2.imread(img))
+        contour = get_contours(frame)[0]
         hu_moments = get_moments(contour)
         hu_moments = hu_moments.flatten()
         file2 = open(r'supervision.csv', 'r')

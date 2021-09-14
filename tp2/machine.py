@@ -8,15 +8,26 @@ from math import copysign, log10
 from train import train_model
 import csv
 import numpy as np
+from tp1.trackbar import create_trackbar, get_trackbar_value
 
 colors = [(255, 102, 153), (153, 255, 102), (204, 153, 0)]
+
+block_size_trackbar = 'Threshold-Block-Size-Trackbar'
+denoise_radius_trackbar = 'Denoise-Radius-Trackbar'
+binary_window = 'Binary-Window'
+
+min_area_trackbar = 'Min-Area-Trackbar'
+drawed_window = 'Drawed-Window'
 
 
 def get_denoised(frame):
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
-    threshold_frame = cv2.adaptiveThreshold(gray_frame, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 511,
+    block_size = int(np.ceil(get_trackbar_value(block_size_trackbar, binary_window)) // 2 * 2 + 3)
+    block_size
+    threshold_frame = cv2.adaptiveThreshold(gray_frame, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV,
+                                            block_size,
                                             10)
-    return denoise(threshold_frame, cv2.MORPH_ELLIPSE, 5)
+    return denoise(threshold_frame, cv2.MORPH_ELLIPSE, get_trackbar_value(denoise_radius_trackbar, binary_window) + 1)
 
 
 def get_moments(contour):
@@ -25,7 +36,7 @@ def get_moments(contour):
 
 def get_contours(frame):
     contours, _ = cv2.findContours(frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-    return get_biggest_contours(contours, 3, 10000)
+    return get_biggest_contours(contours, 3, get_trackbar_value(min_area_trackbar, drawed_window))
 
 
 def get_hu_moments(contour):
@@ -57,8 +68,13 @@ def main():
         trained_tree = train_model()
         trained_tree.save(r'./tree.yml')
 
-    cv2.namedWindow("binary-window")
-    cv2.namedWindow("draw-window")
+    cv2.namedWindow(binary_window)
+    create_trackbar(block_size_trackbar, binary_window, slider_max=480*640, initial_value=1)
+    create_trackbar(denoise_radius_trackbar, binary_window, slider_max=20, initial_value=1)
+
+    cv2.namedWindow(drawed_window)
+    create_trackbar(min_area_trackbar, drawed_window, slider_max=480*640, initial_value=5000)
+
     cap = cv2.VideoCapture(2)
 
     while True:
@@ -75,10 +91,10 @@ def main():
             prediction = int_to_label(evaluate_tree(trained_tree, moments))
             draw_name(drawed, (contour, prediction), (0, 153, 255), thickness=3)
 
-        cv2.imshow("draw-window", drawed)
-        cv2.imshow("binary-window", denoised_frame)
+        cv2.imshow(drawed_window, drawed)
+        cv2.imshow(binary_window, denoised_frame)
         if cv2.waitKey(1) & 0xFF:
             continue
 
-
-main()
+if __name__ == '__main__':
+    main()
