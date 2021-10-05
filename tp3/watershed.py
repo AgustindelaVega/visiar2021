@@ -24,7 +24,7 @@ def watershed(img):
 def click_event(event, x, y, _flags, _params):
     if event == cv2.EVENT_LBUTTONDOWN:
         val = int(chr(selected_key))
-        points.append(((x, y), val, selected_key))
+        points.append(((x, y), val))
         cv2.circle(seeds, (x, y), 7, (val, val, val), thickness=-1)
 
 
@@ -50,14 +50,14 @@ def main():
         seeds_copy = seeds.copy()
 
         for point in points:
-            color = ImageColor.getcolor(base_colours[int(chr(point[2]))], "RGB")
-            val = int(chr(point[2])) * 20
+            color = ImageColor.getcolor(base_colours[point[1]], "RGB")
+            val = point[1] * 20
 
             x = point[0][0]
             y = point[0][1]
             cv2.circle(frame_copy, (x, y), 7, val, thickness=-1)
             cv2.circle(seeds_copy, (x, y), 7, val, thickness=-1)
-            cv2.putText(frame_copy, chr(point[2]), (x - 20, y - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7,
+            cv2.putText(frame_copy, str(point[1]), (x - 20, y - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7,
                         color, 3)
 
         cv2.imshow(frame_window, frame_copy)
