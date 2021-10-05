@@ -1,22 +1,22 @@
 import cv2
-import sys
 import numpy as np
 from PIL import ImageColor
 
-base_colours = ['#37AB65', '#3DF735', '#AD6D70', '#EC2504', '#8C0B90', '#C0E4FF', '#27B502', '#7C60A8', '#CF95D7', '#37AB65']
-binary_window = 'Binary-Window'
+base_colours = ['#37AB65', '#3DF735', '#AD6D70', '#EC2504', '#8C0B90', '#C0E4FF', '#27B502', '#7C60A8', '#CF95D7',
+                '#37AB65']
+frame_window = 'Frame-Window'
+seeds_map_window = 'Seeds-Map-Window'
+watershed_result_window = 'Watershed-Result-Window'
 
 
 def watershed(img):
-    np.set_printoptions(threshold=sys.maxsize)
-
     markers = cv2.watershed(img, np.int32(seeds))
 
     img[markers == -1] = [0, 0, 255]
     for n in range(1, 10):
         img[markers == n] = ImageColor.getcolor(base_colours[n], "RGB")
 
-    cv2.imshow("img", img)
+    cv2.imshow(watershed_result_window, img)
 
     cv2.waitKey()
 
@@ -33,15 +33,15 @@ def main():
     global seeds
     global frame
     global selected_key
-    selected_key = 49
+    selected_key = 49  # 1 en ASCII
     points = []
     # seeds = np.zeros((1198, 1198), np.uint8)
     seeds = np.zeros((480, 640), np.uint8)
-    cv2.namedWindow("frame")
-    cv2.namedWindow("seeds")
+    cv2.namedWindow(frame_window)
+    cv2.namedWindow(seeds_map_window)
 
     cap = cv2.VideoCapture(0)
-    cv2.setMouseCallback("frame", click_event)
+    cv2.setMouseCallback(frame_window, click_event)
 
     while True:
         _, frame = cap.read()
@@ -53,18 +53,22 @@ def main():
             color = ImageColor.getcolor(base_colours[int(chr(point[2]))], "RGB")
             val = int(chr(point[2])) * 20
 
-            cv2.circle(frame_copy, (point[0][0], point[0][1]), 7, val, thickness=-1)
-            cv2.circle(seeds_copy, (point[0][0], point[0][1]), 7, val, thickness=-1)
-            cv2.putText(frame_copy, chr(point[2]), (point[0][0] - 20, point[0][1] - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 3)
+            x = point[0][0]
+            y = point[0][1]
+            cv2.circle(frame_copy, (x, y), 7, val, thickness=-1)
+            cv2.circle(seeds_copy, (x, y), 7, val, thickness=-1)
+            cv2.putText(frame_copy, chr(point[2]), (x - 20, y - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7,
+                        color, 3)
 
-        cv2.imshow("frame", frame_copy)
+        cv2.imshow(frame_window, frame_copy)
         map = cv2.applyColorMap(seeds_copy, cv2.COLORMAP_JET)
-        cv2.imshow("seeds", map)
+        cv2.imshow(seeds_map_window, map)
 
         key = cv2.waitKey(100) & 0xFF
         if key == 32:
             watershed(frame.copy())
             points = []
+            # seeds = np.zeros((1198, 1198), np.uint8)
             seeds = np.zeros((480, 640), np.uint8)
 
         if ord('1') <= key <= ord('9'):
