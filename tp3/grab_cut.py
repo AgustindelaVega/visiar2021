@@ -1,20 +1,20 @@
 import cv2
 import numpy as np
 
-binary_window = 'Binary-Window'
-selected_image_window = 'Selected-Image-Window'
+webcam_window = 'Webcam-Image-Window'
+segmented_image_window = 'Segmented-Image-Window'
 
 
 def grab_cut(img):
-    # si usamos el metodo de GC_INIT_WITH_RECT no es necesario camara por eso hacemos una matriz de 0
+    # creamos una mascara con puros ceros
     mask = np.zeros(img.shape[:2], np.uint8)
 
-    # These are arrays used by the algorithm internally. You just create two np.float64 type zero arrays
+    # Arrays usados internamente por grabCut para crear los modelos de background y foreground
     bgdModel = np.zeros((1, 65), np.float64)
     fgdModel = np.zeros((1, 65), np.float64)
 
-    # usamos roi para agarrar el rect
-    rect = cv2.selectROI("img", img, fromCenter=False, showCrosshair=False)
+    # usamos roi para agarrar el area de interes
+    rect = cv2.selectROI("Select-ROI", img, fromCenter=False, showCrosshair=False)
 
     cv2.grabCut(img, mask, rect, bgdModel, fgdModel, 10, cv2.GC_INIT_WITH_RECT)
 
@@ -22,13 +22,13 @@ def grab_cut(img):
 
     img = img * mask2[:, :, np.newaxis]
 
-    cv2.imshow(selected_image_window, img)
+    cv2.imshow(segmented_image_window, img)
     cv2.waitKey()
 
 
 def main():
-    cv2.namedWindow(binary_window)
-    cv2.namedWindow(selected_image_window)
+    cv2.namedWindow(webcam_window)
+    cv2.namedWindow(segmented_image_window)
 
     cap = cv2.VideoCapture(0)
 
@@ -36,7 +36,7 @@ def main():
         _, frame = cap.read()
         # frame = cv2.imread('./1.jpeg')
 
-        cv2.imshow(binary_window, frame)
+        cv2.imshow(webcam_window, frame)
 
         if cv2.waitKey(10) & 0xFF == ord('p'):
             grab_cut(frame.copy())
