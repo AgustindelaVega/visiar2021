@@ -1,11 +1,8 @@
 import cv2
 from color_utils import color_detector
 from config import config
-import freetype
 from constants import (
     COLOR_PLACEHOLDER,
-    LOCALES,
-    ROOT_DIR,
     CUBE_PALETTE,
     MINI_STICKER_AREA_TILE_SIZE,
     MINI_STICKER_AREA_TILE_GAP,
@@ -19,6 +16,8 @@ from constants import (
     E_INCORRECTLY_SCANNED,
     E_ALREADY_SOLVED
 )
+
+
 class Webcam:
 
     def __init__(self):
@@ -30,12 +29,12 @@ class Webcam:
         self.average_sticker_colors = {}
         self.result_state = {}
 
-        self.snapshot_state = [(255,255,255), (255,255,255), (255,255,255),
-                               (255,255,255), (255,255,255), (255,255,255),
-                               (255,255,255), (255,255,255), (255,255,255)]
-        self.preview_state  = [(255,255,255), (255,255,255), (255,255,255),
-                               (255,255,255), (255,255,255), (255,255,255),
-                               (255,255,255), (255,255,255), (255,255,255)]
+        self.snapshot_state = [(255, 255, 255), (255, 255, 255), (255, 255, 255),
+                               (255, 255, 255), (255, 255, 255), (255, 255, 255),
+                               (255, 255, 255), (255, 255, 255), (255, 255, 255)]
+        self.preview_state = [(255, 255, 255), (255, 255, 255), (255, 255, 255),
+                              (255, 255, 255), (255, 255, 255), (255, 255, 255),
+                              (255, 255, 255), (255, 255, 255), (255, 255, 255)]
 
         self.cam.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
         self.cam.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
@@ -94,7 +93,7 @@ class Webcam:
         for contour in contours:
             perimeter = cv2.arcLength(contour, True)
             approx = cv2.approxPolyDP(contour, 0.1 * perimeter, True)
-            if len (approx) == 4:
+            if len(approx) == 4:
                 area = cv2.contourArea(contour)
                 (x, y, w, h) = cv2.boundingRect(approx)
 
@@ -237,7 +236,7 @@ class Webcam:
                 self.preview_state[index] = eval(most_common_color)
                 break
 
-            roi = frame[y+7:y+h-7, x+14:x+w-14]
+            roi = frame[y + 7:y + h - 7, x + 14:x + w - 14]
             avg_bgr = color_detector.get_dominant_color(roi)
             closest_color = color_detector.get_closest_color(avg_bgr)['color_bgr']
             self.preview_state[index] = closest_color
@@ -257,8 +256,10 @@ class Webcam:
         """Render text with a shadow."""
         self.get_text_size(text)
         # img, text, org, fontFace, fontScale, color, thickness=None, lineType=None, bottomLeftOrigin=None)
-        cv2.putText(frame, text, pos, cv2.FONT_HERSHEY_SIMPLEX, 1, color=(0, 0, 0), thickness=2, lineType=cv2.LINE_AA, bottomLeftOrigin=bottomLeftOrigin)
-        cv2.putText(frame, text, pos, cv2.FONT_HERSHEY_SIMPLEX, 1, color=color, thickness=1, lineType=cv2.LINE_AA, bottomLeftOrigin=bottomLeftOrigin)
+        cv2.putText(frame, text, pos, cv2.FONT_HERSHEY_SIMPLEX, 0.5, color=(0, 0, 0), thickness=2, lineType=cv2.LINE_AA,
+                    bottomLeftOrigin=None)
+        cv2.putText(frame, text, pos, cv2.FONT_HERSHEY_SIMPLEX, 0.5, color=color, thickness=1, lineType=cv2.LINE_AA,
+                    bottomLeftOrigin=None)
 
     def get_text_size(self, text, size=TEXT_SIZE):
         """Get text size based on the default freetype2 loaded font."""
@@ -266,7 +267,7 @@ class Webcam:
 
     def draw_scanned_sides(self, frame):
         """Display how many sides are scanned by the user."""
-        text = 'scannedSides' + str(len(self.result_state.keys()))
+        text = 'scannedSides: ' + str(len(self.result_state.keys()))
         self.render_text(frame, text, (20, self.height - 20), bottomLeftOrigin=True)
 
     def draw_current_color_to_calibrate(self, frame):
@@ -276,16 +277,15 @@ class Webcam:
         if self.done_calibrating:
             messages = [
                 'calibratedSuccessfully',
-                'quitCalibrateMode:' + CALIBRATE_MODE_KEY,
+                'quitCalibrateMode: ' + CALIBRATE_MODE_KEY,
             ]
             for index, text in enumerate(messages):
-                font_size
                 (textsize_width, textsize_height), _ = self.get_text_size(text, font_size)
                 y = y_offset + (textsize_height + 10) * index
                 self.render_text(frame, text, (int(self.width / 2 - textsize_width / 2), y), size=font_size)
         else:
             current_color = self.colors_to_calibrate[self.current_color_to_calibrate_index]
-            text = 'currentCalibratingSide.{}' + current_color
+            text = 'currentCalibratingSide: ' + current_color
             (textsize_width, textsize_height), _ = self.get_text_size(text, font_size)
             self.render_text(frame, text, (int(self.width / 2 - textsize_width / 2), y_offset), size=font_size)
 
@@ -323,12 +323,6 @@ class Webcam:
         self.current_color_to_calibrate_index = 0
         self.done_calibrating = False
 
-    def draw_current_language(self, frame):
-        text = 'language'
-        (textsize_width, textsize_height), _ = self.get_text_size(text)
-        offset = 20
-        self.render_text(frame, text, (self.width - textsize_width - offset, offset))
-
     def draw_2d_cube_state(self, frame):
         """
         Create a 2D cube state visualization and draw the self.result_state.
@@ -350,11 +344,11 @@ class Webcam:
         Based on the x and y in that 4x3 grid we can calculate its position.
         """
         grid = {
-            'white' : [1, 0],
+            'white': [1, 0],
             'orange': [0, 1],
-            'green' : [1, 1],
-            'red'   : [2, 1],
-            'blue'  : [3, 1],
+            'green': [1, 1],
+            'red': [2, 1],
+            'blue': [3, 1],
             'yellow': [1, 2],
         }
 
@@ -374,8 +368,10 @@ class Webcam:
             for row in range(3):
                 for col in range(3):
                     index += 1
-                    x1 = int((offset_x + MINI_STICKER_AREA_TILE_SIZE * col) + (MINI_STICKER_AREA_TILE_GAP * col) + ((side_size + side_offset) * grid_x))
-                    y1 = int((offset_y + MINI_STICKER_AREA_TILE_SIZE * row) + (MINI_STICKER_AREA_TILE_GAP * row) + ((side_size + side_offset) * grid_y))
+                    x1 = int((offset_x + MINI_STICKER_AREA_TILE_SIZE * col) + (MINI_STICKER_AREA_TILE_GAP * col) + (
+                            (side_size + side_offset) * grid_x))
+                    y1 = int((offset_y + MINI_STICKER_AREA_TILE_SIZE * row) + (MINI_STICKER_AREA_TILE_GAP * row) + (
+                            (side_size + side_offset) * grid_y))
                     x2 = int(x1 + MINI_STICKER_AREA_TILE_SIZE)
                     y2 = int(y1 + MINI_STICKER_AREA_TILE_SIZE)
 
@@ -465,7 +461,7 @@ class Webcam:
                 elif key == 32 and self.done_calibrating == False:
                     current_color = self.colors_to_calibrate[self.current_color_to_calibrate_index]
                     (x, y, w, h) = contours[4]
-                    roi = frame[y+7:y+h-7, x+14:x+w-14]
+                    roi = frame[y + 7:y + h - 7, x + 14:x + w - 14]
                     avg_bgr = color_detector.get_dominant_color(roi)
                     self.calibrated_colors[current_color] = avg_bgr
                     self.current_color_to_calibrate_index += 1
@@ -478,7 +474,6 @@ class Webcam:
                 self.draw_current_color_to_calibrate(frame)
                 self.draw_calibrated_colors(frame)
             else:
-                self.draw_current_language(frame)
                 self.draw_preview_stickers(frame)
                 self.draw_snapshot_stickers(frame)
                 self.draw_scanned_sides(frame)
