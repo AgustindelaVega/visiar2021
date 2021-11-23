@@ -315,7 +315,7 @@ class Webcam:
                 tuple([int(c) for c in color_bgr]),
                 -1
             )
-            self.render_text(frame, color_name, (20, y1 + 3))
+            self.render_text(frame, color_name, (20, y1 + 20))
 
     def reset_calibrate_mode(self):
         """Reset calibrate mode variables."""
@@ -479,7 +479,7 @@ class Webcam:
                 self.draw_scanned_sides(frame)
                 self.draw_2d_cube_state(frame)
 
-            cv2.imshow("Qbr - Rubik's cube solver", frame)
+            cv2.imshow("Visiar - Rubik's cube solver", frame)
 
         self.cam.release()
         cv2.destroyAllWindows()
