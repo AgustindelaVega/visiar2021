@@ -470,8 +470,6 @@ class Webcam:
 
             contours = self.find_contours(dilatedFrame)
             if len(contours) == 9:
-                # trackbar_min_area_val = get_trackbar_value("trackbar", "dilated")
-                # contours = filter(lambda x_2: (cv2.contourArea(x_2) >= trackbar_min_area_val), contours)
                 self.draw_contours(frame, contours)
                 if not self.calibrate_mode:
                     self.update_preview_state(frame, contours)
@@ -500,10 +498,6 @@ class Webcam:
 
         self.cam.release()
         cv2.destroyAllWindows()
-
-        test = self.get_result_notation()[1]
-        print(test)
-        print(utils.solve(test, 'Kociemba'))
 
         if len(self.result_state.keys()) != 6:
             return E_INCORRECTLY_SCANNED
