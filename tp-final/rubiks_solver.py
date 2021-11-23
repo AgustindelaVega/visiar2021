@@ -1,5 +1,6 @@
 import cv2
 import math
+from color_utils import get_colour_name, convert_rgb_to_names, nearest_colour
 
 webcam_window = 'Webcam-Image-Window'
 segmented_image_window = 'Segmented-Image-Window'
@@ -53,8 +54,10 @@ def main():
         ]
 
         colors = []
-        for point in points:
-            colors.append(frame[(point[1], point[0])])
+        for idx, point in enumerate(points):
+            col = frame[(point[1], point[0])]
+            colors.append(col)
+            print(col, "-", nearest_colour(col))
 
         cv2.imshow(webcam_window, frame)
 
