@@ -1,6 +1,7 @@
 import cv2
 import math
-from color_utils import get_colour_name, convert_rgb_to_names, nearest_colour
+# from color_utils import get_colour_name, convert_rgb_to_names, nearest_colour
+from colordetection import ColorDetector
 
 webcam_window = 'Webcam-Image-Window'
 segmented_image_window = 'Segmented-Image-Window'
@@ -54,10 +55,18 @@ def main():
         ]
 
         colors = []
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
         for idx, point in enumerate(points):
+            y = point[1]
+            x = point[0]
+            roi = hsv[y-15:y + 15, x-15:x + 15]
+            cv2.imshow(segmented_image_window, roi)
+            avg_hsv = ColorDetector.average_hsv(roi)
+            color_name = ColorDetector.get_color_name(avg_hsv)
             col = frame[(point[1], point[0])]
             colors.append(col)
-            print(col, "-", nearest_colour(col))
+            print(col, "-", color_name)
 
         cv2.imshow(webcam_window, frame)
 

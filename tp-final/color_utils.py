@@ -83,6 +83,18 @@ class ColorDetection:
         color_name = self.get_closest_color(bgr)['color_name']
         return notations[color_name]
 
+    def convert_bgr_to_color_initial(self, bgr):
+        notations = {
+            'green': 'g',
+            'white': 'w',
+            'blue': 'b',
+            'red': 'r',
+            'orange': 'o',
+            'yellow': 'y'
+        }
+        color_name = self.get_closest_color(bgr)['color_name']
+        return notations[color_name]
+
     def set_cube_color_pallete(self, palette):
         """
         Set a new cube color palette. The palette is being used when the user is

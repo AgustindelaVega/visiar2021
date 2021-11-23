@@ -1,4 +1,6 @@
 import cv2
+from rubik_solver import utils
+from tp1.trackbar import create_trackbar, get_trackbar_value
 from color_utils import color_detector
 from config import config
 from constants import (
@@ -25,7 +27,7 @@ class Webcam:
         self.cam = cv2.VideoCapture(0)
         print('Webcam successfully started')
 
-        self.colors_to_calibrate = ['green', 'red', 'blue', 'orange', 'white', 'yellow']
+        self.colors_to_calibrate = ['red', 'green', 'orange', 'blue', 'yellow', 'white']
         self.average_sticker_colors = {}
         self.result_state = {}
 
@@ -45,6 +47,8 @@ class Webcam:
         self.calibrated_colors = {}
         self.current_color_to_calibrate_index = 0
         self.done_calibrating = False
+        cv2.namedWindow("dilated")
+        create_trackbar("trackbar", "dilated", slider_max=480 * 640, initial_value=10000)
 
     def draw_stickers(self, frame, stickers, offset_x, offset_y):
         """Draws the given stickers onto the given frame."""
@@ -84,12 +88,11 @@ class Webcam:
         y = STICKER_AREA_TILE_SIZE * 3 + STICKER_AREA_TILE_GAP * 2 + STICKER_AREA_OFFSET * 2
         self.draw_stickers(frame, self.snapshot_state, STICKER_AREA_OFFSET, y)
 
+    # filters cube inside contours, those who have a square-ish shape
     def find_contours(self, dilatedFrame):
-        """Find the contours of a 3x3x3 cube."""
         contours, hierarchy = cv2.findContours(dilatedFrame, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         final_contours = []
 
-        # Step 1/4: filter all contours to only those that are square-ish shapes.
         for contour in contours:
             perimeter = cv2.arcLength(contour, True)
             approx = cv2.approxPolyDP(contour, 0.1 * perimeter, True)
@@ -101,7 +104,7 @@ class Webcam:
                 ratio = w / float(h)
 
                 # Check if contour is close to a square.
-                if ratio >= 0.8 and ratio <= 1.2 and w >= 30 and w <= 60 and area / (w * h) > 0.4:
+                if ratio >= 0.8 and ratio <= 1.2 and w >= 30 and w <= 100 and area / (w * h) > 0.4:
                     final_contours.append((x, y, w, h))
 
         # Return early if we didn't found 9 or more contours.
@@ -109,7 +112,6 @@ class Webcam:
             return []
 
         # Step 2/4: Find the contour that has 9 neighbors (including itself)
-        # and return all of those neighbors.
         found = False
         contour_neighbors = {}
         for index, contour in enumerate(final_contours):
@@ -236,9 +238,11 @@ class Webcam:
                 self.preview_state[index] = eval(most_common_color)
                 break
 
-            roi = frame[y + 7:y + h - 7, x + 14:x + w - 14]
+            roi = frame[y + 12:y + h - 12, x + 12:x + w - 12]
+            cv2.imshow("test", roi)
             avg_bgr = color_detector.get_dominant_color(roi)
             closest_color = color_detector.get_closest_color(avg_bgr)['color_bgr']
+            print(closest_color)
             self.preview_state[index] = closest_color
             if index in self.average_sticker_colors:
                 self.average_sticker_colors[index].append(closest_color)
@@ -329,27 +333,27 @@ class Webcam:
         We're gonna display the visualization like so:
                     -----
                   | W W W |
-                  | W W W |
+                  | W Y W |
                   | W W W |
             -----   -----   -----   -----
           | O O O | G G G | R R R | B B B |
-          | O O O | G G G | R R R | B B B |
+          | O B O | G R G | R G R | B O B |
           | O O O | G G G | R R R | B B B |
             -----   -----   -----   -----
                   | Y Y Y |
-                  | Y Y Y |
+                  | Y W Y |
                   | Y Y Y |
                     -----
         So we're gonna make a 4x3 grid and hardcode where each side has to go.
         Based on the x and y in that 4x3 grid we can calculate its position.
         """
         grid = {
-            'white': [1, 0],
-            'orange': [0, 1],
-            'green': [1, 1],
-            'red': [2, 1],
-            'blue': [3, 1],
-            'yellow': [1, 2],
+            'white': [1, 2],
+            'orange': [3, 1],
+            'green': [2, 1],
+            'red': [1, 1],
+            'blue': [0, 1],
+            'yellow': [1, 0],
         }
 
         # The offset in-between each side (white, red, etc).
@@ -400,16 +404,26 @@ class Webcam:
     def get_result_notation(self):
         """Convert all the sides and their BGR colors to cube notation."""
         notation = dict(self.result_state)
+        items = {}
+        color_seq = ''
         for side, preview in notation.items():
             for sticker_index, bgr in enumerate(preview):
+                if side in items:
+                    items[side] = items[side] + color_detector.convert_bgr_to_color_initial(bgr)
+                else:
+                    items[side] = color_detector.convert_bgr_to_color_initial(bgr)
                 notation[side][sticker_index] = color_detector.convert_bgr_to_notation(bgr)
+
+        print(items)
+        for side in ['yellow', 'blue', 'red', 'green', 'orange', 'white']:
+            color_seq += items[side]
 
         # Join all the sides together into one single string.
         # Order must be URFDLB (white, red, green, yellow, orange, blue)
         combined = ''
         for side in ['white', 'red', 'green', 'yellow', 'orange', 'blue']:
             combined += ''.join(notation[side])
-        return combined
+        return combined, color_seq
 
     def state_already_solved(self):
         """Find out if the cube hasn't been solved already."""
@@ -450,11 +464,14 @@ class Webcam:
             grayFrame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             blurredFrame = cv2.blur(grayFrame, (3, 3))
             cannyFrame = cv2.Canny(blurredFrame, 30, 60, 3)
-            kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 9))
+            kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
             dilatedFrame = cv2.dilate(cannyFrame, kernel)
+            cv2.imshow("dilated", dilatedFrame)
 
             contours = self.find_contours(dilatedFrame)
             if len(contours) == 9:
+                # trackbar_min_area_val = get_trackbar_value("trackbar", "dilated")
+                # contours = filter(lambda x_2: (cv2.contourArea(x_2) >= trackbar_min_area_val), contours)
                 self.draw_contours(frame, contours)
                 if not self.calibrate_mode:
                     self.update_preview_state(frame, contours)
@@ -484,6 +501,10 @@ class Webcam:
         self.cam.release()
         cv2.destroyAllWindows()
 
+        test = self.get_result_notation()[1]
+        print(test)
+        print(utils.solve(test, 'Kociemba'))
+
         if len(self.result_state.keys()) != 6:
             return E_INCORRECTLY_SCANNED
 
@@ -493,7 +514,7 @@ class Webcam:
         if self.state_already_solved():
             return E_ALREADY_SOLVED
 
-        return self.get_result_notation()
+        return utils.solve(self.get_result_notation()[1], 'Kociemba')
 
 
 webcam = Webcam()
