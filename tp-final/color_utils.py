@@ -65,24 +65,6 @@ class ColorDetection:
         closest = min(distances, key=lambda item: item['distance'])
         return closest
 
-    def convert_bgr_to_notation(self, bgr):
-        """
-        Convert BGR tuple to rubik's cube notation.
-        The BGR color must be normalized first by the get_closest_color method.
-        :param bgr tuple: The BGR values to convert.
-        :returns: str
-        """
-        notations = {
-            'green' : 'F',
-            'white' : 'U',
-            'blue'  : 'B',
-            'red'   : 'R',
-            'orange': 'L',
-            'yellow': 'D'
-        }
-        color_name = self.get_closest_color(bgr)['color_name']
-        return notations[color_name]
-
     def convert_bgr_to_color_initial(self, bgr):
         notations = {
             'green': 'g',
