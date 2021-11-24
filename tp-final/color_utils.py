@@ -25,19 +25,12 @@ class ColorDetection:
             self.cube_color_palette[side] = tuple(bgr)
 
     def get_prominent_color(self, bgr):
-        """Get the prominent color equivalent of the given bgr color."""
         for color_name, color_bgr in self.cube_color_palette.items():
             if tuple([int(c) for c in bgr]) == color_bgr:
                 return self.prominent_color_palette[color_name]
         return COLOR_PLACEHOLDER
 
     def get_dominant_color(self, roi):
-        """
-        Get dominant color from a certain region of interest.
-        :param roi: The image list.
-        :returns: tuple
-        """
-        average = roi.mean(axis=0).mean(axis=0)
         pixels = np.float32(roi.reshape(-1, 3))
 
         n_colors = 1
@@ -49,11 +42,6 @@ class ColorDetection:
         return tuple(dominant)
 
     def get_closest_color(self, bgr):
-        """
-        Get the closest color of a BGR color using CIEDE2000 distance.
-        :param bgr tuple: The BGR color to use.
-        :returns: dict
-        """
         lab = bgr2lab(bgr)
         distances = []
         for color_name, color_bgr in self.cube_color_palette.items():
@@ -78,11 +66,6 @@ class ColorDetection:
         return notations[color_name]
 
     def set_cube_color_pallete(self, palette):
-        """
-        Set a new cube color palette. The palette is being used when the user is
-        scanning his cube in solve mode by matching the scanned colors against
-        this palette.
-        """
         for side, bgr in palette.items():
             self.cube_color_palette[side] = tuple([int(c) for c in bgr])
 
