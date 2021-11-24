@@ -370,7 +370,6 @@ class Webcam:
 
     # convert result to solver library input
     def get_result_notation(self):
-        """Convert all the sides and their BGR colors to cube notation."""
         notation = dict(self.result_state)
         items = {}
         color_seq = ''
@@ -388,7 +387,6 @@ class Webcam:
 
     # check if is already solved
     def state_already_solved(self):
-        """Find out if the cube hasn't been solved already."""
         for side in ['white', 'red', 'green', 'yellow', 'orange', 'blue']:
             # Get the center color of the current side.
             center_bgr = self.result_state[side][4]
@@ -405,10 +403,6 @@ class Webcam:
         self.render_text(frame, text, (20, self.height - 20))
 
     def run(self):
-        """
-        Open up the webcam and present the user with the Qbr user interface.
-        Returns a string of the scanned state in rubik's cube notation.
-        """
         while True:
             _, frame = self.cam.read()
             key = cv2.waitKey(10) & 0xff
