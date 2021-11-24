@@ -398,9 +398,9 @@ class Webcam:
                     return False
         return True
 
-    def draw_scanned_successfully(self, frame, error):
-        text = 'Scanned Failed!' if error else 'Scanned Successfully!'
-        self.render_text(frame, text, (20, self.height - 20))
+    def draw_scanned_successfully(self, frame, successfully):
+        text = 'Scanned Successfully!' if successfully else 'Scanned Failed!'
+        self.render_text(frame, text, (20, self.height - 40))
 
     def run(self):
         while True:
