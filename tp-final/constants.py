@@ -18,5 +18,6 @@ TEXT_SIZE = 100
 CUBE_PALETTE = 'cube_palette'
 
 # Application errors
-E_INCORRECTLY_SCANNED = 'Incorrectly scanned'
-E_ALREADY_SOLVED = 'Already resolved'
+ERROR_MISSING_SIDES = 'Some sides are still not scanned'
+ERROR_INCORRECTLY_SCANNED = 'Incorrectly scanned'
+ERROR_ALREADY_SOLVED = 'Already solved'

@@ -69,4 +69,8 @@ class ColorDetection:
         for side, bgr in palette.items():
             self.cube_color_palette[side] = tuple([int(c) for c in bgr])
 
+    def convert_name_to_bgr(self, name):
+        return self.prominent_color_palette[name]
+
+
 color_detector = ColorDetection()

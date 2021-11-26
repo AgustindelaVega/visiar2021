@@ -14,8 +14,9 @@ from constants import (
     STICKER_CONTOUR_COLOR,
     CALIBRATE_MODE_KEY,
     TEXT_SIZE,
-    E_INCORRECTLY_SCANNED,
-    E_ALREADY_SOLVED
+    ERROR_INCORRECTLY_SCANNED,
+    ERROR_ALREADY_SOLVED,
+    ERROR_MISSING_SIDES
 )
 
 
@@ -26,8 +27,10 @@ class Webcam:
 
         self.colors_to_calibrate = ['red', 'green', 'orange', 'blue', 'yellow', 'white']
         self.average_sticker_colors = {}
+        # all 6 sides result
         self.result_state = {}
 
+        # initial snapshot(current saved detection) & preview(current detection) states are all white
         self.snapshot_state = [(255, 255, 255), (255, 255, 255), (255, 255, 255),
                                (255, 255, 255), (255, 255, 255), (255, 255, 255),
                                (255, 255, 255), (255, 255, 255), (255, 255, 255)]
@@ -46,7 +49,8 @@ class Webcam:
         self.done_calibrating = False
 
     # draw main grid of stickers
-    def draw_stickers(self, frame, stickers, offset_x, offset_y):
+    @staticmethod
+    def draw_stickers(frame, stickers, offset_x, offset_y):
         index = -1
         for row in range(3):
             for col in range(3):
@@ -83,7 +87,7 @@ class Webcam:
         y = STICKER_AREA_TILE_SIZE * 3 + STICKER_AREA_TILE_GAP * 2 + STICKER_AREA_OFFSET * 2
         self.draw_stickers(frame, self.snapshot_state, STICKER_AREA_OFFSET, y)
 
-    # filters cube inside contours, those who have a square-ish shape
+    # filters cube inside contours, those who have a square-ish shape TODO understand this
     def find_contours(self, dilatedFrame):
         contours, hierarchy = cv2.findContours(dilatedFrame, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         final_contours = []
@@ -190,7 +194,7 @@ class Webcam:
         sorted_contours = top_row + middle_row + bottom_row
         return sorted_contours
 
-    # check if all colors are scanned
+    # check if all colors are scanned (all colors should sum 9 occurrences)
     def scanned_successfully(self):
         color_count = {}
         for side, preview in self.result_state.items():
@@ -203,37 +207,45 @@ class Webcam:
         invalid_colors = [k for k, v in color_count.items() if v != 9]
         return len(invalid_colors) == 0
 
-    # draw the contours of each color
+    # draw a list of sticker contours
     def draw_contours(self, frame, contours):
         if self.calibrate_mode:
-            # Only show the center piece contour.
-            (x, y, w, h) = contours[4]
-            cv2.rectangle(frame, (x, y), (x + w, y + h), STICKER_CONTOUR_COLOR, 2)
+            # Only show the center piece contour
+            self.draw_sticker(frame, contours[4])
         else:
-            for index, (x, y, w, h) in enumerate(contours):
-                cv2.rectangle(frame, (x, y), (x + w, y + h), STICKER_CONTOUR_COLOR, 2)
+            for contour in contours:
+                self.draw_sticker(frame, contour)
+
+    # draw the contour of a given sticker
+    @staticmethod
+    def draw_sticker(frame, contour):
+        (x, y, w, h) = contour
+        cv2.rectangle(frame, (x, y), (x + w, y + h), STICKER_CONTOUR_COLOR, 2)
 
     # calculate average colors
     def update_preview_state(self, frame, contours):
-        max_average_rounds = 8
+        # max_average_rounds = 8
         for index, (x, y, w, h) in enumerate(contours):
-            if index in self.average_sticker_colors and len(self.average_sticker_colors[index]) == max_average_rounds:
-                sorted_items = {}
-                for bgr in self.average_sticker_colors[index]:
-                    key = str(bgr)
-                    if key in sorted_items:
-                        sorted_items[key] += 1
-                    else:
-                        sorted_items[key] = 1
-                most_common_color = max(sorted_items, key=lambda i: sorted_items[i])
-                self.average_sticker_colors[index] = []
-                self.preview_state[index] = eval(most_common_color)
-                break
+            # this part does not do much, when calculated over 8 times each sticker, it calculates an average of those detections
+            # if index in self.average_sticker_colors and len(self.average_sticker_colors[index]) == max_average_rounds:
+            #     sorted_items = {}
+            #     for bgr in self.average_sticker_colors[index]:
+            #         key = str(bgr)
+            #         if key in sorted_items:
+            #             sorted_items[key] += 1
+            #         else:
+            #             sorted_items[key] = 1
+            #     most_common_color = max(sorted_items, key=lambda i: sorted_items[i])
+            #     self.average_sticker_colors[index] = []
+            #     self.preview_state[index] = eval(most_common_color)
+            #     break
 
+            # define a region of interest from contour center and get dominant color
             roi = frame[y + 12:y + h - 12, x + 12:x + w - 12]
-            cv2.imshow("test", roi)
             avg_bgr = color_detector.get_dominant_color(roi)
             closest_color = color_detector.get_closest_color(avg_bgr)['color_bgr']
+
+            # update the state of the current preview
             self.preview_state[index] = closest_color
             if index in self.average_sticker_colors:
                 self.average_sticker_colors[index].append(closest_color)
@@ -255,7 +267,8 @@ class Webcam:
         cv2.putText(frame, text, pos, cv2.FONT_HERSHEY_SIMPLEX, 0.5, color=color, thickness=1, lineType=cv2.LINE_AA,
                     bottomLeftOrigin=None)
 
-    def get_text_size(self, text, size=TEXT_SIZE):
+    @staticmethod
+    def get_text_size(text, size=TEXT_SIZE):
         return (size, size), size
 
     # draw scanned sides count
@@ -265,12 +278,12 @@ class Webcam:
 
     # draw current color to calibrate
     def draw_current_color_to_calibrate(self, frame):
-        y_offset = 20
+        y_offset = 40
         font_size = int(TEXT_SIZE * 1.25)
         if self.done_calibrating:
             messages = [
-                'calibratedSuccessfully',
-                'quitCalibrateMode: ' + CALIBRATE_MODE_KEY,
+                'Calibrated Successfully!',
+                'To exit Calibration mode press: ' + CALIBRATE_MODE_KEY,
             ]
             for index, text in enumerate(messages):
                 (textsize_width, textsize_height), _ = self.get_text_size(text, font_size)
@@ -278,9 +291,34 @@ class Webcam:
                 self.render_text(frame, text, (int(self.width / 2 - textsize_width / 2), y))
         else:
             current_color = self.colors_to_calibrate[self.current_color_to_calibrate_index]
-            text = 'currentCalibratingSide: ' + current_color
+            self.draw_current_sticker_color_to_calibrate(frame, color_detector.convert_name_to_bgr(current_color))
+            text = 'Please scan side '
             (textsize_width, textsize_height), _ = self.get_text_size(text, font_size)
-            self.render_text(frame, text, (int(self.width / 2 - textsize_width / 2), y_offset))
+            self.render_text(frame, text, (int(self.width - 180 - textsize_width / 2), y_offset))
+
+    def draw_current_sticker_color_to_calibrate(self, frame, current_color):
+        x1 = self.width - 90
+        y1 = 20
+        x2 = x1 + STICKER_AREA_TILE_SIZE
+        y2 = y1 + STICKER_AREA_TILE_SIZE
+
+        # shadow
+        cv2.rectangle(
+            frame,
+            (x1, y1),
+            (x2, y2),
+            (0, 0, 0),
+            -1
+        )
+
+        # foreground
+        cv2.rectangle(
+            frame,
+            (x1 + 1, y1 + 1),
+            (x2 - 1, y2 - 1),
+            current_color,
+            -1
+        )
 
     # draw the history of calibrated colors
     def draw_calibrated_colors(self, frame):
@@ -388,13 +426,11 @@ class Webcam:
     # check if is already solved
     def state_already_solved(self):
         for side in ['white', 'red', 'green', 'yellow', 'orange', 'blue']:
-            # Get the center color of the current side.
-            center_bgr = self.result_state[side][4]
+            center = self.result_state[side][4]
 
-            # Compare the center color to all neighbors. If we come across a
-            # different color, then we can assume the cube isn't solved yet.
-            for bgr in self.result_state[side]:
-                if center_bgr != bgr:
+            # Compare the center color to neighbours, all should be same as center
+            for sticker in self.result_state[side]:
+                if center != sticker:
                     return False
         return True
 
@@ -407,13 +443,11 @@ class Webcam:
             _, frame = self.cam.read()
             key = cv2.waitKey(10) & 0xff
 
-            # Quit on escape.
-            if key == 27:
+            if key == 27:  # escape
                 break
 
             if not self.calibrate_mode:
-                # Update the snapshot when space bar is pressed.
-                if key == 32:
+                if key == 32:  # space
                     self.update_snapshot_state(frame)
 
             # Toggle calibrate mode.
@@ -424,7 +458,7 @@ class Webcam:
             grayFrame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             blurredFrame = cv2.blur(grayFrame, (3, 3))
             cannyFrame = cv2.Canny(blurredFrame, 30, 60, 3)
-            kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
+            kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (8, 8))
             dilatedFrame = cv2.dilate(cannyFrame, kernel)
             cv2.imshow("dilated", dilatedFrame)
 
@@ -462,13 +496,13 @@ class Webcam:
         cv2.destroyAllWindows()
 
         if len(self.result_state.keys()) != 6:
-            return E_INCORRECTLY_SCANNED
+            return ERROR_MISSING_SIDES
 
         if not self.scanned_successfully():
-            return E_INCORRECTLY_SCANNED
+            return ERROR_INCORRECTLY_SCANNED
 
         if self.state_already_solved():
-            return E_ALREADY_SOLVED
+            return ERROR_ALREADY_SOLVED
 
         return utils.solve(self.get_result_notation(), 'Kociemba')
 
