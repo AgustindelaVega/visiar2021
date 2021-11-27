@@ -87,89 +87,84 @@ class Webcam:
         y = STICKER_AREA_TILE_SIZE * 3 + STICKER_AREA_TILE_GAP * 2 + STICKER_AREA_OFFSET * 2
         self.draw_stickers(frame, self.snapshot_state, STICKER_AREA_OFFSET, y)
 
-    # filters cube inside contours, those who have a square-ish shape TODO understand this
-    def find_contours(self, dilatedFrame):
-        contours, hierarchy = cv2.findContours(dilatedFrame, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    # filters cube inside contours, those who have a square-ish shape
+    @staticmethod
+    def find_contours(dilated_frame):
+        contours, hierarchy = cv2.findContours(dilated_frame, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        # this array will contain all of the square-ish shapes
         final_contours = []
 
+        # 1 - Find all shapes that are square-ish
         for contour in contours:
             perimeter = cv2.arcLength(contour, True)
             approx = cv2.approxPolyDP(contour, 0.1 * perimeter, True)
-            if len(approx) == 4:
+            if len(approx) == 4:  # aprox poly has 4 sides
                 area = cv2.contourArea(contour)
                 (x, y, w, h) = cv2.boundingRect(approx)
 
-                # Find aspect ratio of boundary rectangle around the countours.
+                # width vs height to check if is square
                 ratio = w / float(h)
 
-                # Check if contour is close to a square.
-                if ratio >= 0.8 and ratio <= 1.2 and w >= 30 and w <= 100 and area / (w * h) > 0.4:
+                # check if contour is close to a square
+                if 0.8 <= ratio <= 1.2 and 30 <= w <= 100 and area / (w * h) > 0.8:
                     final_contours.append((x, y, w, h))
 
-        # Return early if we didn't found 9 or more contours.
+        # no full side found
         if len(final_contours) < 9:
             return []
 
-        # Step 2/4: Find the contour that has 9 neighbors (including itself)
+        # 2 - Find the contour that has 9 neighbors (including itself)
         found = False
         contour_neighbors = {}
         for index, contour in enumerate(final_contours):
             (x, y, w, h) = contour
             contour_neighbors[index] = []
+            # shape x & y centers
             center_x = x + w / 2
             center_y = y + h / 2
-            radius = 1.5
 
-            # Create 9 positions for the current contour which are the
-            # neighbors. We'll use this to check how many neighbors each contour
-            # has. The only way all of these can match is if the current contour
-            # is the center of the cube. If we found the center, we also know
-            # all the neighbors, thus knowing all the contours and thus knowing
-            # this shape can be considered a 3x3x3 cube. When we've found those
-            # contours, we sort them and return them.
+            delta = 1
+
+            # check the 8 neighbours if are present on the square-ish shapes list.
+            # if has 8 neighbours, this is the center sticker
+
             neighbor_positions = [
                 # top left
-                [(center_x - w * radius), (center_y - h * radius)],
+                [(center_x - w * delta), (center_y - h * delta)],
 
-                # top middle
-                [center_x, (center_y - h * radius)],
+                # top center
+                [center_x, (center_y - h * delta)],
 
                 # top right
-                [(center_x + w * radius), (center_y - h * radius)],
+                [(center_x + w * delta), (center_y - h * delta)],
 
-                # middle left
-                [(center_x - w * radius), center_y],
+                # mid left
+                [(center_x - w * delta), center_y],
 
                 # center
                 [center_x, center_y],
 
-                # middle right
-                [(center_x + w * radius), center_y],
+                # mid right
+                [(center_x + w * delta), center_y],
 
                 # bottom left
-                [(center_x - w * radius), (center_y + h * radius)],
+                [(center_x - w * delta), (center_y + h * delta)],
 
-                # bottom middle
-                [center_x, (center_y + h * radius)],
+                # bottom center
+                [center_x, (center_y + h * delta)],
 
                 # bottom right
-                [(center_x + w * radius), (center_y + h * radius)],
+                [(center_x + w * delta), (center_y + h * delta)],
             ]
 
-            for neighbor in final_contours:
-                (x2, y2, w2, h2) = neighbor
-                for (x3, y3) in neighbor_positions:
-                    # The neighbor_positions are located in the center of each
-                    # contour instead of top-left corner.
-                    # logic: (top left < center pos) and (bottom right > center pos)
-                    if (x2 < x3 and y2 < y3) and (x2 + w2 > x3 and y2 + h2 > y3):
+            for neighbor in final_contours:  # iterate detected square-ish shapes and see if the neighbours are included
+                (detected_x, detected_y, detected_w, detected_h) = neighbor
+                for (neighbour_x, neighbour_y) in neighbor_positions:  # this are the centers of each neighbour
+                    # center is between top left and bottom right
+                    if detected_x < neighbour_x < detected_x + detected_w and detected_y < neighbour_y < detected_y + detected_h:
                         contour_neighbors[index].append(neighbor)
 
-        # Step 3/4: Now that we know how many neighbors all contours have, we'll
-        # loop over them and find the contour that has 9 neighbors, which
-        # includes itself. This is the center piece of the cube. If we come
-        # across it, then the 'neighbors' are actually all the contours we're
-        # looking for.
+        # 3 - We have all neighbours, need to check which contour has 9 neighbours
         for (contour, neighbors) in contour_neighbors.items():
             if len(neighbors) == 9:
                 found = True
@@ -179,14 +174,12 @@ class Webcam:
         if not found:
             return []
 
-        # Step 4/4: When we reached this part of the code we found a cube-like
-        # contour. The code below will sort all the contours on their X and Y
-        # values from the top-left to the bottom-right.
+        # 4 - Sort contours top left to bottom right
 
-        # Sort contours on the y-value first.
+        # Sort y
         y_sorted = sorted(final_contours, key=lambda item: item[1])
 
-        # Split into 3 rows and sort each row on the x-value.
+        # Sort each y on x
         top_row = sorted(y_sorted[0:3], key=lambda item: item[0])
         middle_row = sorted(y_sorted[3:6], key=lambda item: item[0])
         bottom_row = sorted(y_sorted[6:9], key=lambda item: item[0])
@@ -364,7 +357,6 @@ class Webcam:
             'blue': [0, 1],
             'yellow': [1, 0],
         }
-
         side_offset = MINI_STICKER_AREA_TILE_GAP * 3
 
         side_size = MINI_STICKER_AREA_TILE_SIZE * 3 + MINI_STICKER_AREA_TILE_GAP * 2
