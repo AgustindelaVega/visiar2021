@@ -10,13 +10,13 @@ from constants import (
     MINI_STICKER_AREA_OFFSET,
     STICKER_AREA_TILE_SIZE,
     STICKER_AREA_TILE_GAP,
-    STICKER_AREA_OFFSET,
+    STICKER_AREA_OFFSET_X,
     STICKER_CONTOUR_COLOR,
     CALIBRATE_MODE_KEY,
     TEXT_SIZE,
     ERROR_INCORRECTLY_SCANNED,
     ERROR_ALREADY_SOLVED,
-    ERROR_MISSING_SIDES
+    ERROR_MISSING_SIDES, STICKER_AREA_OFFSET_Y
 )
 
 
@@ -80,12 +80,12 @@ class Webcam:
 
     # draw the preview of the scanned and saved stickers
     def draw_preview_stickers(self, frame):
-        self.draw_stickers(frame, self.preview_state, STICKER_AREA_OFFSET, STICKER_AREA_OFFSET)
+        self.draw_stickers(frame, self.preview_state, STICKER_AREA_OFFSET_X, STICKER_AREA_OFFSET_Y)
 
     # draw the current scanned sticker
     def draw_current_stickers(self, frame):
-        y = STICKER_AREA_TILE_SIZE * 3 + STICKER_AREA_TILE_GAP * 2 + STICKER_AREA_OFFSET * 2
-        self.draw_stickers(frame, self.snapshot_state, STICKER_AREA_OFFSET, y)
+        y = STICKER_AREA_OFFSET_Y + int(STICKER_AREA_OFFSET_Y / 4)
+        self.draw_stickers(frame, self.snapshot_state, STICKER_AREA_OFFSET_X, y)
 
     # filters cube inside contours, those who have a square-ish shape
     @staticmethod
@@ -266,7 +266,7 @@ class Webcam:
 
     # draw scanned sides count
     def draw_scanned_sides(self, frame):
-        text = 'scannedSides: ' + str(len(self.result_state.keys()))
+        text = 'Scanned sides: ' + str(len(self.result_state.keys()))
         self.render_text(frame, text, (20, self.height - 20))
 
     # draw current color to calibrate
