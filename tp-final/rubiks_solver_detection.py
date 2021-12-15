@@ -123,7 +123,7 @@ class Webcam:
             center_x = x + w / 2
             center_y = y + h / 2
 
-            delta = 1
+            delta = 1 # este delta esta alpedo? multiplica por uno
 
             # check the 8 neighbours if are present on the square-ish shapes list.
             # if has 8 neighbours, this is the center sticker
