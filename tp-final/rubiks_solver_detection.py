@@ -1,7 +1,6 @@
 import cv2
 from rubik_solver import utils
 from color_utils import color_detector
-from config import config
 from ui_utils import (
     draw_preview_stickers,
     draw_current_stickers,
@@ -12,11 +11,11 @@ from ui_utils import (
     draw_2d_cube_state
 )
 from constants import (
-    CUBE_PALETTE,
     CALIBRATE_MODE_KEY,
     ERROR_INCORRECTLY_SCANNED,
     ERROR_ALREADY_SOLVED,
     ERROR_MISSING_SIDES,
+    CENTER_STICKER_INDEX
 )
 
 
@@ -26,7 +25,7 @@ class Webcam:
         self.cam = cv2.VideoCapture(0)
 
         self.colors_to_calibrate = ['red', 'green', 'orange', 'blue', 'yellow', 'white']
-        self.average_sticker_colors = {}
+
         # all 6 sides result
         self.result_state = {}
 
@@ -51,7 +50,7 @@ class Webcam:
     # filters cube inside contours, those who have a square-ish shape
     @staticmethod
     def find_contours(dilated_frame):
-        contours, hierarchy = cv2.findContours(dilated_frame, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(dilated_frame, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         # this array will contain all of the square-ish shapes
         final_contours = []
 
@@ -61,14 +60,13 @@ class Webcam:
             epsilon = 0.1 * perimeter
             approx = cv2.approxPolyDP(contour, epsilon, True)
             if len(approx) == 4:  # aprox poly has 4 sides
-                area = cv2.contourArea(contour)
                 (x, y, w, h) = cv2.boundingRect(approx)
 
                 # width vs height to check if is square
                 ratio = w / float(h)
 
                 # check if contour is close to a square
-                if 0.8 <= ratio <= 1.2 and 30 <= w <= 400 and area / (w * h) > 0.8:
+                if 0.8 <= ratio <= 1.2 and 30 <= w <= 200:
                     final_contours.append((x, y, w, h))
 
         # no full side found
@@ -85,7 +83,7 @@ class Webcam:
             center_x = x + w / 2
             center_y = y + h / 2
 
-            delta = 1.1  # este delta esta alpedo? multiplica por uno
+            delta = 1.1
 
             # check the 8 neighbours if are present on the square-ish shapes list.
             # if has 8 neighbours, this is the center sticker
@@ -168,38 +166,19 @@ class Webcam:
 
     # calculate average colors
     def update_preview_state(self, frame, contours):
-        # max_average_rounds = 8
         for index, (x, y, w, h) in enumerate(contours):
-            # this part does not do much, when calculated over 8 times each sticker, it calculates an average of those detections
-            # if index in self.average_sticker_colors and len(self.average_sticker_colors[index]) == max_average_rounds:
-            #     sorted_items = {}
-            #     for bgr in self.average_sticker_colors[index]:
-            #         key = str(bgr)
-            #         if key in sorted_items:
-            #             sorted_items[key] += 1
-            #         else:
-            #             sorted_items[key] = 1
-            #     most_common_color = max(sorted_items, key=lambda i: sorted_items[i])
-            #     self.average_sticker_colors[index] = []
-            #     self.preview_state[index] = eval(most_common_color)
-            #     break
-
             # define a region of interest from contour center and get dominant color
-            roi = frame[y + 12:y + h - 12, x + 12:x + w - 12]
+            roi = frame[y:y + h, x:x + w]
             avg_bgr = color_detector.get_dominant_color(roi)
             closest_color = color_detector.get_closest_color(avg_bgr)['color_bgr']
 
             # update the state of the current preview
             self.preview_state[index] = closest_color
-            if index in self.average_sticker_colors:
-                self.average_sticker_colors[index].append(closest_color)
-            else:
-                self.average_sticker_colors[index] = [closest_color]
 
     # set saved state as the current preview state
     def update_snapshot_state(self, frame):
         self.snapshot_state = list(self.preview_state)
-        center_color_name = color_detector.get_closest_color(self.snapshot_state[4])['color_name']
+        center_color_name = color_detector.get_closest_color(self.snapshot_state[CENTER_STICKER_INDEX])['color_name']
         self.result_state[center_color_name] = self.snapshot_state
         draw_current_stickers(self, frame)
 
@@ -229,7 +208,7 @@ class Webcam:
     # check if is already solved
     def state_already_solved(self):
         for side in ['white', 'red', 'green', 'yellow', 'orange', 'blue']:
-            center = self.result_state[side][4]
+            center = self.result_state[side][CENTER_STICKER_INDEX]
 
             # Compare the center color to neighbours, all should be same as center
             for sticker in self.result_state[side]:
@@ -245,11 +224,12 @@ class Webcam:
             if key == 27:  # escape
                 break
 
+            # Take snapshot
             if not self.calibrate_mode:
                 if key == 32:  # space
                     self.update_snapshot_state(frame)
 
-            # Toggle calibrate mode.
+            # Toggle calibrate mode
             if key == ord(CALIBRATE_MODE_KEY):
                 self.reset_calibrate_mode()
                 self.calibrate_mode = not self.calibrate_mode
@@ -263,20 +243,21 @@ class Webcam:
 
             contours = self.find_contours(dilated_frame)
             if len(contours) == 9:
+                # draw each sticker contour on top of the cube
                 draw_contours(self, frame, contours)
+
                 if not self.calibrate_mode:
                     self.update_preview_state(frame, contours)
-                elif key == 32 and self.done_calibrating == False:
+                elif key == 32 and not self.done_calibrating:
                     current_color = self.colors_to_calibrate[self.current_calibrate_index]
-                    (x, y, w, h) = contours[4]
-                    roi = frame[y + 7:y + h - 7, x + 14:x + w - 14]
+                    (x, y, w, h) = contours[CENTER_STICKER_INDEX]
+                    roi = frame[y:y + h, x:x + w]
                     avg_bgr = color_detector.get_dominant_color(roi)
                     self.calibrated_colors[current_color] = avg_bgr
                     self.current_calibrate_index += 1
                     self.done_calibrating = self.current_calibrate_index == len(self.colors_to_calibrate)
                     if self.done_calibrating:
                         color_detector.set_cube_color_pallete(self.calibrated_colors)
-                        config.set_setting(CUBE_PALETTE, color_detector.cube_color_palette)
 
             if self.calibrate_mode:
                 draw_current_color_to_calibrate(self, frame)

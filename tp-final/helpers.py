@@ -1,5 +1,6 @@
 import math
 
+
 # Taken from https://stackoverflow.com/a/16020102
 def bgr2lab(inputColor):
     """Convert BGR to LAB."""
@@ -55,6 +56,7 @@ def bgr2lab(inputColor):
     Lab [ 2 ] = round( b, 4 )
 
     return Lab
+
 
 # Copyright to https://github.com/lovro-i/CIEDE2000.
 def ciede2000(Lab_1, Lab_2):

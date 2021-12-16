@@ -1,8 +1,8 @@
 import numpy as np
 import cv2
 from helpers import ciede2000, bgr2lab
-from config import config
-from constants import CUBE_PALETTE, COLOR_PLACEHOLDER
+from constants import COLOR_PLACEHOLDER
+
 
 class ColorDetection:
 
@@ -17,10 +17,7 @@ class ColorDetection:
         }
 
         # Load colors from config and convert the list -> tuple.
-        self.cube_color_palette = config.get_setting(
-            CUBE_PALETTE,
-            self.prominent_color_palette
-        )
+        self.cube_color_palette = self.prominent_color_palette
         for side, bgr in self.cube_color_palette.items():
             self.cube_color_palette[side] = tuple(bgr)
 
@@ -30,7 +27,8 @@ class ColorDetection:
                 return self.prominent_color_palette[color_name]
         return COLOR_PLACEHOLDER
 
-    def get_dominant_color(self, roi):
+    @staticmethod
+    def get_dominant_color(roi):
         pixels = np.float32(roi.reshape(-1, 3))
 
         n_colors = 1
@@ -48,7 +46,7 @@ class ColorDetection:
             distances.append({
                 'color_name': color_name,
                 'color_bgr': color_bgr,
-                'distance': ciede2000(lab, bgr2lab(color_bgr))
+                'distance': ciede2000(lab, bgr2lab(color_bgr))  # ciede2000 calculates the distance to a given color
             })
         closest = min(distances, key=lambda item: item['distance'])
         return closest
