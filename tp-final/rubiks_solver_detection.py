@@ -2,21 +2,21 @@ import cv2
 from rubik_solver import utils
 from color_utils import color_detector
 from config import config
+from ui_utils import (
+    draw_preview_stickers,
+    draw_current_stickers,
+    draw_contours,
+    draw_current_color_to_calibrate,
+    draw_calibrated_colors,
+    draw_scanned_successfully,
+    draw_2d_cube_state
+)
 from constants import (
-    COLOR_PLACEHOLDER,
     CUBE_PALETTE,
-    MINI_STICKER_AREA_TILE_SIZE,
-    MINI_STICKER_AREA_TILE_GAP,
-    MINI_STICKER_AREA_OFFSET,
-    STICKER_AREA_TILE_SIZE,
-    STICKER_AREA_TILE_GAP,
-    STICKER_AREA_OFFSET_X,
-    STICKER_CONTOUR_COLOR,
     CALIBRATE_MODE_KEY,
-    TEXT_SIZE,
     ERROR_INCORRECTLY_SCANNED,
     ERROR_ALREADY_SOLVED,
-    ERROR_MISSING_SIDES, STICKER_AREA_OFFSET_Y
+    ERROR_MISSING_SIDES,
 )
 
 
@@ -45,47 +45,8 @@ class Webcam:
 
         self.calibrate_mode = False
         self.calibrated_colors = {}
-        self.current_color_to_calibrate_index = 0
+        self.current_calibrate_index = 0
         self.done_calibrating = False
-
-    # draw main grid of stickers
-    @staticmethod
-    def draw_stickers(frame, stickers, offset_x, offset_y):
-        index = -1
-        for row in range(3):
-            for col in range(3):
-                index += 1
-                x1 = (offset_x + STICKER_AREA_TILE_SIZE * col) + STICKER_AREA_TILE_GAP * col
-                y1 = (offset_y + STICKER_AREA_TILE_SIZE * row) + STICKER_AREA_TILE_GAP * row
-                x2 = x1 + STICKER_AREA_TILE_SIZE
-                y2 = y1 + STICKER_AREA_TILE_SIZE
-
-                # shadow
-                cv2.rectangle(
-                    frame,
-                    (x1, y1),
-                    (x2, y2),
-                    (0, 0, 0),
-                    -1
-                )
-
-                # foreground color
-                cv2.rectangle(
-                    frame,
-                    (x1 + 1, y1 + 1),
-                    (x2 - 1, y2 - 1),
-                    color_detector.get_prominent_color(stickers[index]),
-                    -1
-                )
-
-    # draw the preview of the scanned and saved stickers
-    def draw_preview_stickers(self, frame):
-        self.draw_stickers(frame, self.preview_state, STICKER_AREA_OFFSET_X, STICKER_AREA_OFFSET_Y)
-
-    # draw the current scanned sticker
-    def draw_current_stickers(self, frame):
-        y = STICKER_AREA_OFFSET_Y + int(STICKER_AREA_OFFSET_Y / 4)
-        self.draw_stickers(frame, self.snapshot_state, STICKER_AREA_OFFSET_X, y)
 
     # filters cube inside contours, those who have a square-ish shape
     @staticmethod
@@ -123,7 +84,7 @@ class Webcam:
             center_x = x + w / 2
             center_y = y + h / 2
 
-            delta = 1 # este delta esta alpedo? multiplica por uno
+            delta = 1  # este delta esta alpedo? multiplica por uno
 
             # check the 8 neighbours if are present on the square-ish shapes list.
             # if has 8 neighbours, this is the center sticker
@@ -159,7 +120,7 @@ class Webcam:
 
             for neighbor in final_contours:  # iterate detected square-ish shapes and see if the neighbours are included
                 (detected_x, detected_y, detected_w, detected_h) = neighbor
-                for (neighbour_x, neighbour_y) in neighbor_positions:  # this are the centers of each neighbour
+                for (neighbour_x, neighbour_y) in neighbor_positions:  # these are the centers of each neighbour
                     # center is between top left and bottom right
                     if detected_x < neighbour_x < detected_x + detected_w and detected_y < neighbour_y < detected_y + detected_h:
                         contour_neighbors[index].append(neighbor)
@@ -200,21 +161,6 @@ class Webcam:
         invalid_colors = [k for k, v in color_count.items() if v != 9]
         return len(invalid_colors) == 0
 
-    # draw a list of sticker contours
-    def draw_contours(self, frame, contours):
-        if self.calibrate_mode:
-            # Only show the center piece contour
-            self.draw_sticker(frame, contours[4])
-        else:
-            for contour in contours:
-                self.draw_sticker(frame, contour)
-
-    # draw the contour of a given sticker
-    @staticmethod
-    def draw_sticker(frame, contour):
-        (x, y, w, h) = contour
-        cv2.rectangle(frame, (x, y), (x + w, y + h), STICKER_CONTOUR_COLOR, 2)
-
     # calculate average colors
     def update_preview_state(self, frame, contours):
         # max_average_rounds = 8
@@ -250,153 +196,13 @@ class Webcam:
         self.snapshot_state = list(self.preview_state)
         center_color_name = color_detector.get_closest_color(self.snapshot_state[4])['color_name']
         self.result_state[center_color_name] = self.snapshot_state
-        self.draw_current_stickers(frame)
-
-    # show text on the given frame
-    def render_text(self, frame, text, pos, color=(255, 255, 255)):
-        self.get_text_size(text)
-        cv2.putText(frame, text, pos, cv2.FONT_HERSHEY_SIMPLEX, 0.5, color=(0, 0, 0), thickness=2, lineType=cv2.LINE_AA,
-                    bottomLeftOrigin=None)
-        cv2.putText(frame, text, pos, cv2.FONT_HERSHEY_SIMPLEX, 0.5, color=color, thickness=1, lineType=cv2.LINE_AA,
-                    bottomLeftOrigin=None)
-
-    @staticmethod
-    def get_text_size(text, size=TEXT_SIZE):
-        return (size, size), size
-
-    # draw scanned sides count
-    def draw_scanned_sides(self, frame):
-        text = 'Scanned sides: ' + str(len(self.result_state.keys()))
-        self.render_text(frame, text, (20, self.height - 20))
-
-    # draw current color to calibrate
-    def draw_current_color_to_calibrate(self, frame):
-        y_offset = 40
-        font_size = int(TEXT_SIZE * 1.25)
-        if self.done_calibrating:
-            messages = [
-                'Calibrated Successfully!',
-                'To exit Calibration mode press: ' + CALIBRATE_MODE_KEY,
-            ]
-            for index, text in enumerate(messages):
-                (textsize_width, textsize_height), _ = self.get_text_size(text, font_size)
-                y = y_offset + (textsize_height + 10) * index
-                self.render_text(frame, text, (int(self.width / 2 - textsize_width / 2), y))
-        else:
-            current_color = self.colors_to_calibrate[self.current_color_to_calibrate_index]
-            self.draw_current_sticker_color_to_calibrate(frame, color_detector.convert_name_to_bgr(current_color))
-            text = 'Please scan side '
-            (textsize_width, textsize_height), _ = self.get_text_size(text, font_size)
-            self.render_text(frame, text, (int(self.width - 180 - textsize_width / 2), y_offset))
-
-    def draw_current_sticker_color_to_calibrate(self, frame, current_color):
-        x1 = self.width - 90
-        y1 = 20
-        x2 = x1 + STICKER_AREA_TILE_SIZE
-        y2 = y1 + STICKER_AREA_TILE_SIZE
-
-        # shadow
-        cv2.rectangle(
-            frame,
-            (x1, y1),
-            (x2, y2),
-            (0, 0, 0),
-            -1
-        )
-
-        # foreground
-        cv2.rectangle(
-            frame,
-            (x1 + 1, y1 + 1),
-            (x2 - 1, y2 - 1),
-            current_color,
-            -1
-        )
-
-    # draw the history of calibrated colors
-    def draw_calibrated_colors(self, frame):
-        offset_y = 20
-        for index, (color_name, color_bgr) in enumerate(self.calibrated_colors.items()):
-            x1 = 90
-            y1 = int(offset_y + STICKER_AREA_TILE_SIZE * index)
-            x2 = x1 + STICKER_AREA_TILE_SIZE
-            y2 = y1 + STICKER_AREA_TILE_SIZE
-
-            # shadow
-            cv2.rectangle(
-                frame,
-                (x1, y1),
-                (x2, y2),
-                (0, 0, 0),
-                -1
-            )
-
-            # foreground
-            cv2.rectangle(
-                frame,
-                (x1 + 1, y1 + 1),
-                (x2 - 1, y2 - 1),
-                tuple([int(c) for c in color_bgr]),
-                -1
-            )
-            self.render_text(frame, color_name, (20, y1 + 20))
+        draw_current_stickers(self, frame)
 
     # reset calibration
     def reset_calibrate_mode(self):
         self.calibrated_colors = {}
-        self.current_color_to_calibrate_index = 0
+        self.current_calibrate_index = 0
         self.done_calibrating = False
-
-    # draw cube state
-    def draw_2d_cube_state(self, frame):
-        grid = {
-            'white': [1, 2],
-            'orange': [3, 1],
-            'green': [2, 1],
-            'red': [1, 1],
-            'blue': [0, 1],
-            'yellow': [1, 0],
-        }
-        side_offset = MINI_STICKER_AREA_TILE_GAP * 3
-
-        side_size = MINI_STICKER_AREA_TILE_SIZE * 3 + MINI_STICKER_AREA_TILE_GAP * 2
-
-        offset_x = self.width - (side_size * 4) - (side_offset * 3) - MINI_STICKER_AREA_OFFSET
-        offset_y = self.height - (side_size * 3) - (side_offset * 2) - MINI_STICKER_AREA_OFFSET
-
-        for side, (grid_x, grid_y) in grid.items():
-            index = -1
-            for row in range(3):
-                for col in range(3):
-                    index += 1
-                    x1 = int((offset_x + MINI_STICKER_AREA_TILE_SIZE * col) + (MINI_STICKER_AREA_TILE_GAP * col) + (
-                            (side_size + side_offset) * grid_x))
-                    y1 = int((offset_y + MINI_STICKER_AREA_TILE_SIZE * row) + (MINI_STICKER_AREA_TILE_GAP * row) + (
-                            (side_size + side_offset) * grid_y))
-                    x2 = int(x1 + MINI_STICKER_AREA_TILE_SIZE)
-                    y2 = int(y1 + MINI_STICKER_AREA_TILE_SIZE)
-
-                    foreground_color = COLOR_PLACEHOLDER
-                    if side in self.result_state:
-                        foreground_color = color_detector.get_prominent_color(self.result_state[side][index])
-
-                    # shadow
-                    cv2.rectangle(
-                        frame,
-                        (x1, y1),
-                        (x2, y2),
-                        (0, 0, 0),
-                        -1
-                    )
-
-                    # foreground color
-                    cv2.rectangle(
-                        frame,
-                        (x1 + 1, y1 + 1),
-                        (x2 - 1, y2 - 1),
-                        foreground_color,
-                        -1
-                    )
 
     # convert result to solver library input
     def get_result_notation(self):
@@ -426,10 +232,6 @@ class Webcam:
                     return False
         return True
 
-    def draw_scanned_successfully(self, frame, successfully):
-        text = 'Scanned Successfully!' if successfully else 'Scanned Failed!'
-        self.render_text(frame, text, (20, self.height - 40))
-
     def run(self):
         while True:
             _, frame = self.cam.read()
@@ -447,40 +249,39 @@ class Webcam:
                 self.reset_calibrate_mode()
                 self.calibrate_mode = not self.calibrate_mode
 
-            grayFrame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            blurredFrame = cv2.blur(grayFrame, (3, 3))
-            cannyFrame = cv2.Canny(blurredFrame, 30, 60, 3)
+            gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            blurred_frame = cv2.blur(gray_frame, (3, 3))
+            canny_frame = cv2.Canny(blurred_frame, 30, 60, 3)
             kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (8, 8))
-            dilatedFrame = cv2.dilate(cannyFrame, kernel)
-            cv2.imshow("dilated", dilatedFrame)
+            dilated_frame = cv2.dilate(canny_frame, kernel)
+            cv2.imshow("dilated", dilated_frame)
 
-            contours = self.find_contours(dilatedFrame)
+            contours = self.find_contours(dilated_frame)
             if len(contours) == 9:
-                self.draw_contours(frame, contours)
+                draw_contours(self, frame, contours)
                 if not self.calibrate_mode:
                     self.update_preview_state(frame, contours)
                 elif key == 32 and self.done_calibrating == False:
-                    current_color = self.colors_to_calibrate[self.current_color_to_calibrate_index]
+                    current_color = self.colors_to_calibrate[self.current_calibrate_index]
                     (x, y, w, h) = contours[4]
                     roi = frame[y + 7:y + h - 7, x + 14:x + w - 14]
                     avg_bgr = color_detector.get_dominant_color(roi)
                     self.calibrated_colors[current_color] = avg_bgr
-                    self.current_color_to_calibrate_index += 1
-                    self.done_calibrating = self.current_color_to_calibrate_index == len(self.colors_to_calibrate)
+                    self.current_calibrate_index += 1
+                    self.done_calibrating = self.current_calibrate_index == len(self.colors_to_calibrate)
                     if self.done_calibrating:
                         color_detector.set_cube_color_pallete(self.calibrated_colors)
                         config.set_setting(CUBE_PALETTE, color_detector.cube_color_palette)
 
             if self.calibrate_mode:
-                self.draw_current_color_to_calibrate(frame)
-                self.draw_calibrated_colors(frame)
+                draw_current_color_to_calibrate(self, frame)
+                draw_calibrated_colors(self, frame)
             else:
-                self.draw_preview_stickers(frame)
-                self.draw_current_stickers(frame)
-                self.draw_scanned_sides(frame)
-                self.draw_2d_cube_state(frame)
+                draw_preview_stickers(self, frame)
+                draw_current_stickers(self, frame)
+                draw_2d_cube_state(self, frame)
                 if len(self.result_state.keys()) == 6:
-                    self.draw_scanned_successfully(frame, self.scanned_successfully())
+                    draw_scanned_successfully(self, frame, self.scanned_successfully())
 
             cv2.imshow("Visiar - Rubik's cube solver", frame)
 
