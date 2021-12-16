@@ -58,7 +58,8 @@ class Webcam:
         # 1 - Find all shapes that are square-ish
         for contour in contours:
             perimeter = cv2.arcLength(contour, True)
-            approx = cv2.approxPolyDP(contour, 0.1 * perimeter, True)
+            epsilon = 0.1 * perimeter
+            approx = cv2.approxPolyDP(contour, epsilon, True)
             if len(approx) == 4:  # aprox poly has 4 sides
                 area = cv2.contourArea(contour)
                 (x, y, w, h) = cv2.boundingRect(approx)
@@ -67,7 +68,7 @@ class Webcam:
                 ratio = w / float(h)
 
                 # check if contour is close to a square
-                if 0.8 <= ratio <= 1.2 and 30 <= w <= 100 and area / (w * h) > 0.8:
+                if 0.8 <= ratio <= 1.2 and 30 <= w <= 400 and area / (w * h) > 0.8:
                     final_contours.append((x, y, w, h))
 
         # no full side found
@@ -84,38 +85,42 @@ class Webcam:
             center_x = x + w / 2
             center_y = y + h / 2
 
-            delta = 1  # este delta esta alpedo? multiplica por uno
+            delta = 1.1  # este delta esta alpedo? multiplica por uno
 
             # check the 8 neighbours if are present on the square-ish shapes list.
             # if has 8 neighbours, this is the center sticker
 
+            x_left = (center_x - w * delta)
+            y_top = (center_y - h * delta)
+            x_right = (center_x + w * delta)
+            y_bottom = (center_y + h * delta)
             neighbor_positions = [
                 # top left
-                [(center_x - w * delta), (center_y - h * delta)],
+                [x_left, y_top],
 
                 # top center
-                [center_x, (center_y - h * delta)],
+                [center_x, y_top],
 
                 # top right
-                [(center_x + w * delta), (center_y - h * delta)],
+                [x_right, y_top],
 
                 # mid left
-                [(center_x - w * delta), center_y],
+                [x_left, center_y],
 
                 # center
                 [center_x, center_y],
 
                 # mid right
-                [(center_x + w * delta), center_y],
+                [x_right, center_y],
 
                 # bottom left
-                [(center_x - w * delta), (center_y + h * delta)],
+                [x_left, y_bottom],
 
                 # bottom center
-                [center_x, (center_y + h * delta)],
+                [center_x, y_bottom],
 
                 # bottom right
-                [(center_x + w * delta), (center_y + h * delta)],
+                [x_right, y_bottom],
             ]
 
             for neighbor in final_contours:  # iterate detected square-ish shapes and see if the neighbours are included
