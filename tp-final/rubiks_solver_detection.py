@@ -10,13 +10,7 @@ from ui_utils import (
     draw_scanned_successfully,
     draw_2d_cube_state
 )
-from constants import (
-    CALIBRATE_MODE_KEY,
-    ERROR_INCORRECTLY_SCANNED,
-    ERROR_ALREADY_SOLVED,
-    ERROR_MISSING_SIDES,
-    CENTER_STICKER_INDEX
-)
+from constants import *
 
 
 class Webcam:
@@ -221,12 +215,12 @@ class Webcam:
             _, frame = self.cam.read()
             key = cv2.waitKey(10) & 0xff
 
-            if key == 27:  # escape
+            if key == ord(RESOLVE_MODE_KEY):  # escape
                 break
 
             # Take snapshot
             if not self.calibrate_mode:
-                if key == 32:  # space
+                if key == SPACE_MODE_KEY:  # space
                     self.update_snapshot_state(frame)
 
             # Toggle calibrate mode
@@ -271,9 +265,6 @@ class Webcam:
 
             cv2.imshow("Visiar - Rubik's cube solver", frame)
 
-        self.cam.release()
-        cv2.destroyAllWindows()
-
         if len(self.result_state.keys()) != 6:
             return ERROR_MISSING_SIDES
 
@@ -283,7 +274,20 @@ class Webcam:
         if self.state_already_solved():
             return ERROR_ALREADY_SOLVED
 
-        return utils.solve(self.get_result_notation(), 'Kociemba')
+        # return utils.solve(self.get_result_notation(), 'Kociemba')
+        value = utils.solve(self.get_result_notation(), 'Kociemba')
+        print(value)
+
+        while(True):
+            _, frame = self.cam.read()
+            key = cv2.waitKey(10) & 0xff
+
+            if key == ESCAPE_MODE_KEY:  # escape
+                self.cam.release()
+                cv2.destroyAllWindows()
+                break
+
+            cv2.imshow("Visiar - Rubik's cube solver", frame)
 
 
 webcam = Webcam()
