@@ -108,7 +108,7 @@ def draw_current_color_to_calibrate(webcam, frame):
 
 def draw_current_sticker_color_to_calibrate(webcam, frame, current_color):
     x1 = webcam.width - 90
-    y1 = 20
+    y1 = 28
     x2 = x1 + STICKER_AREA_TILE_SIZE
     y2 = y1 + STICKER_AREA_TILE_SIZE
 

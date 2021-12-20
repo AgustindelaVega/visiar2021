@@ -215,12 +215,15 @@ class Webcam:
             _, frame = self.cam.read()
             key = cv2.waitKey(10) & 0xff
 
-            if key == ord(RESOLVE_MODE_KEY):  # escape
+            if len(self.result_state.keys()) == 6 and self.scanned_successfully() and key == ord(RESOLVE_MODE_KEY):  # r
                 break
+
+            if key == ESCAPE_KEY:  # escape
+                exit()
 
             # Take snapshot
             if not self.calibrate_mode:
-                if key == SPACE_MODE_KEY:  # space
+                if key == SPACE_KEY:  # space
                     self.update_snapshot_state(frame)
 
             # Toggle calibrate mode
@@ -274,20 +277,17 @@ class Webcam:
         if self.state_already_solved():
             return ERROR_ALREADY_SOLVED
 
-        # return utils.solve(self.get_result_notation(), 'Kociemba')
-        value = utils.solve(self.get_result_notation(), 'Kociemba')
+        selection = int(input('Enter solving method: \n - 1 for Beginner method \n - 2 for CFOP method \n - 3 for Kociemba method \n -> '))
+        if selection == 2:
+            value = utils.solve(self.get_result_notation(), 'CFOP')
+        elif selection == 3:
+            value = utils.solve(self.get_result_notation(), 'Kociemba')
+        else:
+            value = utils.solve(self.get_result_notation(), 'Beginner')
+
         print(value)
-
-        while(True):
-            _, frame = self.cam.read()
-            key = cv2.waitKey(10) & 0xff
-
-            if key == ESCAPE_MODE_KEY:  # escape
-                self.cam.release()
-                cv2.destroyAllWindows()
-                break
-
-            cv2.imshow("Visiar - Rubik's cube solver", frame)
+        self.result_state = {}
+        self.run()
 
 
 webcam = Webcam()
